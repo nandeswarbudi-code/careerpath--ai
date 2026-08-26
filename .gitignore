@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment (contains API keys — NEVER commit)
+.env
+.env.local
+
+# Server data store
+server/data/
+
+# Firebase service account keys
+serviceAccountKey.json
+*.serviceAccountKey.json
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
