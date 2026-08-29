@@ -27,24 +27,24 @@ export const ROLES: Role[] = [
       {
         id: 'p1', title: 'Foundations', duration: 'Weeks 1–4',
         tasks: [
-          { id: 't1', title: 'Master semantic HTML & modern CSS (Flexbox, Grid)', skillId: 'html', resource: 'MDN Web Docs + CSS Battle', resourceLink: RESOURCES.mdn, hours: 30 },
-          { id: 't2', title: 'JavaScript fundamentals: closures, async/await, DOM', skillId: 'js', resource: 'JavaScript.info', resourceLink: RESOURCES.javascriptInfo, hours: 40 },
-          { id: 't3', title: 'Version control workflow with Git branches & PRs', skillId: 'git', resource: 'GitHub Learning Lab', resourceLink: RESOURCES.githubLearning, hours: 10 },
+          { id: 't1', title: 'Master HTML & CSS: Flexbox and Grid Layout', skillId: 'html', resource: 'MDN Web Docs + CSS Battle', resourceLink: RESOURCES.mdn, hours: 30 },
+          { id: 't2', title: 'JavaScript Fundamentals: Closures, Async/Await, DOM', skillId: 'js', resource: 'JavaScript.info', resourceLink: RESOURCES.javascriptInfo, hours: 40 },
+          { id: 't3', title: 'Git Workflow: Branches, Pull Requests, Collaboration', skillId: 'git', resource: 'GitHub Learning Lab', resourceLink: RESOURCES.githubLearning, hours: 10 },
         ],
       },
       {
         id: 'p2', title: 'Framework Mastery', duration: 'Weeks 5–10',
         tasks: [
-          { id: 't4', title: 'React: components, hooks, state management', skillId: 'react', resource: 'React.dev official tutorial', resourceLink: RESOURCES.reactDev, hours: 50 },
-          { id: 't5', title: 'TypeScript: types, generics, typing React props', skillId: 'ts', resource: 'TypeScript Handbook', resourceLink: RESOURCES.tsHandbook, hours: 25 },
-          { id: 't6', title: 'Consume REST APIs, handle loading & error states', skillId: 'api', resource: 'Build a weather dashboard', resourceLink: RESOURCES.freeCodeCamp, hours: 15 },
+          { id: 't4', title: 'React: Components, Hooks, and State Management', skillId: 'react', resource: 'React.dev official tutorial', resourceLink: RESOURCES.reactDev, hours: 50 },
+          { id: 't5', title: 'TypeScript: Types, Generics, and React Props', skillId: 'ts', resource: 'TypeScript Handbook', resourceLink: RESOURCES.tsHandbook, hours: 25 },
+          { id: 't6', title: 'REST APIs: Consuming APIs and Error Handling', skillId: 'api', resource: 'Build a weather dashboard', resourceLink: RESOURCES.freeCodeCamp, hours: 15 },
         ],
       },
       {
         id: 'p3', title: 'Professional Polish', duration: 'Weeks 11–14',
         tasks: [
-          { id: 't7', title: 'Unit & integration testing with Jest + RTL', skillId: 'test', resource: 'Testing Library docs', resourceLink: RESOURCES.testingLibrary, hours: 20 },
-          { id: 't8', title: 'Lighthouse audits, code-splitting, lazy loading', skillId: 'perf', resource: 'web.dev performance course', resourceLink: RESOURCES.webDev, hours: 15 },
+          { id: 't7', title: 'Testing: Jest and React Testing Library', skillId: 'test', resource: 'Testing Library docs', resourceLink: RESOURCES.testingLibrary, hours: 20 },
+          { id: 't8', title: 'Web Performance: Code Splitting and Lazy Loading', skillId: 'perf', resource: 'web.dev performance course', resourceLink: RESOURCES.webDev, hours: 15 },
         ],
       },
     ],
@@ -91,24 +91,24 @@ export const ROLES: Role[] = [
       {
         id: 'p1', title: 'Foundations', duration: 'Weeks 1–5',
         tasks: [
-          { id: 't1', title: 'Python fluency: functions, OOP, comprehensions', skillId: 'py', resource: 'Python for Everybody', resourceLink: RESOURCES.pythonEverybody, hours: 35 },
-          { id: 't2', title: 'Descriptive & inferential statistics, hypothesis testing', skillId: 'stats', resource: 'Khan Academy Statistics', resourceLink: RESOURCES.khanStats, hours: 30 },
-          { id: 't3', title: 'SQL joins, aggregations, window functions', skillId: 'sql', resource: 'Mode SQL Tutorial', resourceLink: RESOURCES.modeSql, hours: 20 },
+          { id: 't1', title: 'Python Fundamentals: Functions, OOP, Comprehensions', skillId: 'py', resource: 'Python for Everybody', resourceLink: RESOURCES.pythonEverybody, hours: 35 },
+          { id: 't2', title: 'Statistics: Descriptive, Inferential, and Hypothesis Testing', skillId: 'stats', resource: 'Khan Academy Statistics', resourceLink: RESOURCES.khanStats, hours: 30 },
+          { id: 't3', title: 'SQL: Joins, Aggregations, and Window Functions', skillId: 'sql', resource: 'Mode SQL Tutorial', resourceLink: RESOURCES.modeSql, hours: 20 },
         ],
       },
       {
         id: 'p2', title: 'Data Wrangling & ML', duration: 'Weeks 6–12',
         tasks: [
-          { id: 't4', title: 'Data cleaning & EDA with Pandas and NumPy', skillId: 'pandas', resource: 'Kaggle Pandas course', resourceLink: RESOURCES.kaggle, hours: 25 },
-          { id: 't5', title: 'Supervised learning: regression, trees, ensembles', skillId: 'ml', resource: 'scikit-learn + Andrew Ng ML', resourceLink: RESOURCES.andrewNgML, hours: 45 },
-          { id: 't6', title: 'Storytelling with Matplotlib, Seaborn, Plotly', skillId: 'viz', resource: 'Storytelling with Data', resourceLink: RESOURCES.storytellingWithData, hours: 15 },
+          { id: 't4', title: 'Data Cleaning: EDA with Pandas and NumPy', skillId: 'pandas', resource: 'Kaggle Pandas course', resourceLink: RESOURCES.kaggle, hours: 25 },
+          { id: 't5', title: 'Machine Learning: Regression, Trees, and Ensembles', skillId: 'ml', resource: 'scikit-learn + Andrew Ng ML', resourceLink: RESOURCES.andrewNgML, hours: 45 },
+          { id: 't6', title: 'Data Visualization: Matplotlib, Seaborn, and Plotly', skillId: 'viz', resource: 'Storytelling with Data', resourceLink: RESOURCES.storytellingWithData, hours: 15 },
         ],
       },
       {
         id: 'p3', title: 'Advanced & Production', duration: 'Weeks 13–16',
         tasks: [
-          { id: 't7', title: 'Neural networks with PyTorch or TensorFlow', skillId: 'dl', resource: 'fast.ai Practical DL', resourceLink: RESOURCES.fastAi, hours: 30 },
-          { id: 't8', title: 'Deploy a model as an API with FastAPI + Docker', skillId: 'mlops', resource: 'Full Stack Deep Learning', resourceLink: RESOURCES.dockerStart, hours: 20 },
+          { id: 't7', title: 'Deep Learning: Neural Networks with PyTorch or TensorFlow', skillId: 'dl', resource: 'fast.ai Practical DL', resourceLink: RESOURCES.fastAi, hours: 30 },
+          { id: 't8', title: 'Model Deployment: FastAPI and Docker', skillId: 'mlops', resource: 'Full Stack Deep Learning', resourceLink: RESOURCES.dockerStart, hours: 20 },
         ],
       },
     ],
@@ -155,24 +155,24 @@ export const ROLES: Role[] = [
       {
         id: 'p1', title: 'Server-Side Foundations', duration: 'Weeks 1–5',
         tasks: [
-          { id: 't1', title: 'Backend language deep-dive (Node.js/Express or Python/FastAPI)', skillId: 'lang', resource: 'Official docs + The Odin Project', resourceLink: RESOURCES.odinProject, hours: 40 },
-          { id: 't2', title: 'Relational modeling, PostgreSQL, and MongoDB basics', skillId: 'db', resource: 'PostgreSQL Tutorial + MongoDB U', resourceLink: RESOURCES.postgresTutorial, hours: 30 },
-          { id: 't3', title: 'Git workflows and a basic CI pipeline', skillId: 'git', resource: 'GitHub Actions docs', resourceLink: RESOURCES.githubLearning, hours: 10 },
+          { id: 't1', title: 'Backend Languages: Node.js/Express or Python/FastAPI', skillId: 'lang', resource: 'Official docs + The Odin Project', resourceLink: RESOURCES.odinProject, hours: 40 },
+          { id: 't2', title: 'Databases: PostgreSQL and MongoDB Fundamentals', skillId: 'db', resource: 'PostgreSQL Tutorial + MongoDB U', resourceLink: RESOURCES.postgresTutorial, hours: 30 },
+          { id: 't3', title: 'Git and CI/CD: Workflows and Pipelines', skillId: 'git', resource: 'GitHub Actions docs', resourceLink: RESOURCES.githubLearning, hours: 10 },
         ],
       },
       {
         id: 'p2', title: 'APIs & Security', duration: 'Weeks 6–11',
         tasks: [
-          { id: 't4', title: 'Design RESTful APIs: versioning, pagination, error handling', skillId: 'apis', resource: 'Build a bookings API', resourceLink: RESOURCES.freeCodeCamp, hours: 35 },
-          { id: 't5', title: 'JWT auth, OAuth2, OWASP top 10 mitigations', skillId: 'auth', resource: 'OWASP Cheat Sheets', resourceLink: RESOURCES.owasp, hours: 20 },
-          { id: 't6', title: 'Redis caching and message queues (RabbitMQ/Kafka basics)', skillId: 'cache', resource: 'Redis University', resourceLink: RESOURCES.redisU, hours: 15 },
+          { id: 't4', title: 'REST APIs: Design, Versioning, and Error Handling', skillId: 'apis', resource: 'Build a bookings API', resourceLink: RESOURCES.freeCodeCamp, hours: 35 },
+          { id: 't5', title: 'Authentication: JWT, OAuth2, and OWASP Security', skillId: 'auth', resource: 'OWASP Cheat Sheets', resourceLink: RESOURCES.owasp, hours: 20 },
+          { id: 't6', title: 'Caching and Queues: Redis, RabbitMQ, and Kafka', skillId: 'cache', resource: 'Redis University', resourceLink: RESOURCES.redisU, hours: 15 },
         ],
       },
       {
         id: 'p3', title: 'Scale & Deployment', duration: 'Weeks 12–15',
         tasks: [
-          { id: 't7', title: 'Containerize services and deploy to a cloud provider', skillId: 'docker', resource: 'Docker Getting Started + AWS free tier', resourceLink: RESOURCES.dockerStart, hours: 20 },
-          { id: 't8', title: 'System design fundamentals: load balancing, sharding, CAP', skillId: 'sysdes', resource: 'System Design Primer', resourceLink: RESOURCES.systemDesignPrimer, hours: 25 },
+          { id: 't7', title: 'Docker and Cloud Deployment: AWS and Other Providers', skillId: 'docker', resource: 'Docker Getting Started + AWS free tier', resourceLink: RESOURCES.dockerStart, hours: 20 },
+          { id: 't8', title: 'System Design: Load Balancing, Sharding, and CAP', skillId: 'sysdes', resource: 'System Design Primer', resourceLink: RESOURCES.systemDesignPrimer, hours: 25 },
         ],
       },
     ],
@@ -219,24 +219,24 @@ export const ROLES: Role[] = [
       {
         id: 'p1', title: 'Design Thinking', duration: 'Weeks 1–4',
         tasks: [
-          { id: 't1', title: 'User research methods: interviews, surveys, personas', skillId: 'ux', resource: 'NN/g articles + IDEO Design Kit', resourceLink: RESOURCES.nnGroup, hours: 25 },
-          { id: 't2', title: 'Information architecture and user flows', skillId: 'ia', resource: 'Card sorting exercises', resourceLink: RESOURCES.ideoKit, hours: 15 },
-          { id: 't3', title: 'Figma essentials: frames, auto-layout, components', skillId: 'figma', resource: 'Figma official tutorials', resourceLink: RESOURCES.figmaTutorials, hours: 20 },
+          { id: 't1', title: 'UX Research: Interviews, Surveys, and Personas', skillId: 'ux', resource: 'NN/g articles + IDEO Design Kit', resourceLink: RESOURCES.nnGroup, hours: 25 },
+          { id: 't2', title: 'Information Architecture: User Flows and Navigation', skillId: 'ia', resource: 'Card sorting exercises', resourceLink: RESOURCES.ideoKit, hours: 15 },
+          { id: 't3', title: 'Figma Essentials: Frames, Auto-Layout, and Components', skillId: 'figma', resource: 'Figma official tutorials', resourceLink: RESOURCES.figmaTutorials, hours: 20 },
         ],
       },
       {
         id: 'p2', title: 'Craft & Prototyping', duration: 'Weeks 5–9',
         tasks: [
-          { id: 't4', title: 'Low-fi to hi-fi wireframes and interactive prototypes', skillId: 'wire', resource: 'Redesign a popular app screen', resourceLink: RESOURCES.figmaTutorials, hours: 30 },
-          { id: 't5', title: 'Color theory, typography scales, spacing systems', skillId: 'visual', resource: 'Refactoring UI', resourceLink: RESOURCES.refactoringUI, hours: 20 },
-          { id: 't6', title: 'Moderated usability tests and iteration', skillId: 'usab', resource: 'Maze / Useberry practice', resourceLink: RESOURCES.nnGroup, hours: 15 },
+          { id: 't4', title: 'Wireframing and Prototyping: Low-Fi to High-Fi', skillId: 'wire', resource: 'Redesign a popular app screen', resourceLink: RESOURCES.figmaTutorials, hours: 30 },
+          { id: 't5', title: 'Visual Design: Color, Typography, and Spacing', skillId: 'visual', resource: 'Refactoring UI', resourceLink: RESOURCES.refactoringUI, hours: 20 },
+          { id: 't6', title: 'Usability Testing: Research and Iteration', skillId: 'usab', resource: 'Maze / Useberry practice', resourceLink: RESOURCES.nnGroup, hours: 15 },
         ],
       },
       {
         id: 'p3', title: 'Systems & Handoff', duration: 'Weeks 10–12',
         tasks: [
-          { id: 't7', title: 'Build a mini design system with tokens & components', skillId: 'ds', resource: 'Material Design + Polaris study', resourceLink: RESOURCES.figmaTutorials, hours: 20 },
-          { id: 't8', title: 'HTML/CSS basics for smooth developer handoff', skillId: 'htmlcss', resource: 'freeCodeCamp Responsive Web', resourceLink: RESOURCES.freeCodeCamp, hours: 15 },
+          { id: 't7', title: 'Design Systems: Tokens, Components, and Documentation', skillId: 'ds', resource: 'Material Design + Polaris study', resourceLink: RESOURCES.figmaTutorials, hours: 20 },
+          { id: 't8', title: 'HTML and CSS: Handoff to Developers', skillId: 'htmlcss', resource: 'freeCodeCamp Responsive Web', resourceLink: RESOURCES.freeCodeCamp, hours: 15 },
         ],
       },
     ],

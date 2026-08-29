@@ -99,26 +99,29 @@ export default function Roadmap({ role, levels, completedTasks, completedResourc
 
       {/* Phases */}
       <div className="space-y-8">
-        {role.phases.map((phase, pi) => (
-          <div key={phase.id}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-extrabold text-white" style={{ background: 'var(--primary)' }}>{pi + 1}</div>
-              <div>
-                <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{phase.title}</h3>
-                <span className="badge badge-blue">{phase.duration}</span>
+        {role.phases && role.phases.length > 0 ? (
+          role.phases.map((phase, pi) => (
+            <div key={phase.id} className="rounded-2xl border p-6" style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-extrabold text-white" style={{ background: 'var(--primary)' }}>
+                  {pi + 1}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{phase.title}</h3>
+                  <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>⏱ {phase.duration}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-3 ml-5 border-l-2 pl-6" style={{ borderColor: 'var(--border)' }}>
-              {phase.tasks.map((task) => {
-                const fast = isFastTrack(task.skillId);
-                const done = completedTasks.has(task.id) || fast;
-                const resDone = completedResources.has(task.id);
-                const verified = verifiedTasks.has(task.id);
-                const timeSpent = getTimeSpent(task.id);
-                const skillName = role.skills.find((s) => s.id === task.skillId)?.name ?? '';
+              <div className="space-y-3">
+                {phase.tasks.map((task) => {
+                  const fast = isFastTrack(task.skillId);
+                  const done = completedTasks.has(task.id) || fast;
+                  const resDone = completedResources.has(task.id);
+                  const verified = verifiedTasks.has(task.id);
+                  const timeSpent = getTimeSpent(task.id);
+                  const skillName = role.skills.find((s) => s.id === task.skillId)?.name ?? '';
 
-                return (
+                  return (
                   <div key={task.id} className="card p-4">
                     {/* Task header */}
                     <button onClick={() => !fast && toggleTask(task.id)} disabled={fast} className="flex w-full items-start gap-3 text-left">
@@ -184,10 +187,15 @@ export default function Roadmap({ role, levels, completedTasks, completedResourc
                     )}
                   </div>
                 );
-              })}
+                })}
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="rounded-lg p-6 text-center" style={{ background: 'var(--bg-alt)' }}>
+            <p style={{ color: 'var(--muted)' }}>No phases available for this role.</p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Projects */}

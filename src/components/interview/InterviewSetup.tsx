@@ -36,7 +36,7 @@ export default function InterviewSetup({ defaultRoleId, hasResume, history, onSt
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm font-semibold uppercase tracking-wider text-indigo-500">AI Interview Studio</div>
+          <div className="text-sm font-semibold uppercase tracking-wider text-indigo-500">Step 5 · Interview Prep</div>
           <h1 className="mt-1 text-3xl font-extrabold text-slate-900">Set up your mock interview</h1>
           <p className="mt-2 text-slate-500">
             {INTERVIEW_ROLES.length}+ real-world roles · {FORMATS.length} interview formats · type or speak your answers.

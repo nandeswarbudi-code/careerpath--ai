@@ -31,15 +31,19 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Analytics — only in supported environments (guards SSR/older browsers/blockers)
+// Analytics — disable on localhost and unsupported browsers to avoid unnecessary network noise.
+const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 let analytics: Analytics | null = null;
-void isSupported()
-  .then((ok) => {
-    if (ok) analytics = getAnalytics(app);
-  })
-  .catch(() => {
-    /* analytics unavailable — non-fatal */
-  });
+
+if (!isLocalHost) {
+  void isSupported()
+    .then((ok) => {
+      if (ok) analytics = getAnalytics(app);
+    })
+    .catch(() => {
+      /* analytics unavailable — non-fatal */
+    });
+}
 
 /** Safe analytics event logger — a no-op when analytics is unavailable. */
 export function track(eventName: string, params?: Record<string, string | number | boolean>): void {
@@ -120,33 +124,43 @@ export interface CloudProgress {
 }
 
 export async function saveProgress(uid: string, progress: CloudProgress): Promise<void> {
-  await setDoc(
-    doc(db, 'users', uid),
-    { ...progress, updatedAt: serverTimestamp() },
-    { merge: true },
-  );
+  try {
+    await setDoc(
+      doc(db, 'users', uid),
+      { ...progress, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  } catch (err) {
+    console.error('[Firebase] saveProgress failed:', err);
+    throw err;
+  }
 }
 
 export async function loadProgress(uid: string): Promise<CloudProgress | null> {
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (!snap.exists()) return null;
-  const d = snap.data() as Partial<CloudProgress>;
-  return {
-    roleId: d.roleId ?? null,
-    levels: d.levels ?? {},
-    completedTasks: d.completedTasks ?? [],
-    completedResources: d.completedResources ?? [],
-    completedProjects: d.completedProjects ?? [],
-    completedCerts: d.completedCerts ?? [],
-    resume: {
-      name: d.resume?.name ?? '', email: d.resume?.email ?? '', phone: d.resume?.phone ?? '',
-      summary: d.resume?.summary ?? '', education: d.resume?.education ?? '',
-      experience: d.resume?.experience ?? '', skills: d.resume?.skills ?? '', projects: d.resume?.projects ?? '',
-    },
-    interviewBest: d.interviewBest ?? null,
-    maxReached: d.maxReached ?? 0,
-    history: Array.isArray(d.history) ? d.history.slice(0, 20) : [],
-  };
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) return null;
+    const d = snap.data() as Partial<CloudProgress>;
+    return {
+      roleId: d.roleId ?? null,
+      levels: d.levels ?? {},
+      completedTasks: d.completedTasks ?? [],
+      completedResources: d.completedResources ?? [],
+      completedProjects: d.completedProjects ?? [],
+      completedCerts: d.completedCerts ?? [],
+      resume: {
+        name: d.resume?.name ?? '', email: d.resume?.email ?? '', phone: d.resume?.phone ?? '',
+        summary: d.resume?.summary ?? '', education: d.resume?.education ?? '',
+        experience: d.resume?.experience ?? '', skills: d.resume?.skills ?? '', projects: d.resume?.projects ?? '',
+      },
+      interviewBest: d.interviewBest ?? null,
+      maxReached: d.maxReached ?? 0,
+      history: Array.isArray(d.history) ? d.history.slice(0, 20) : [],
+    };
+  } catch (err) {
+    console.error('[Firebase] loadProgress failed:', err);
+    throw err;
+  }
 }
 
 // ── Admin: read all users' progress from Firestore (client-side) ──

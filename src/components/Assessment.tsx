@@ -34,7 +34,7 @@ export default function Assessment({ role, levels, setLevels, onNext, onBack }: 
     return (
       <div>
         <div className="mb-8">
-          <div className="text-sm font-semibold uppercase tracking-wider text-indigo-500">Step 2 · AI Skill Assessment</div>
+        <div className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>Step 2 · AI Skill Assessment</div>
           <h1 className="mt-1 text-3xl font-extrabold text-slate-900">Your Skill Gap Analysis</h1>
           <p className="mt-2 text-slate-500">The AI compared your levels against what employers expect from a {role.title}.</p>
         </div>
@@ -102,7 +102,7 @@ export default function Assessment({ role, levels, setLevels, onNext, onBack }: 
   return (
     <div>
       <div className="mb-8">
-        <div className="text-sm font-semibold uppercase tracking-wider text-indigo-500">Step 2 · AI Skill Assessment</div>
+        <div className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>Step 2 · AI Skill Assessment</div>
         <h1 className="mt-1 text-3xl font-extrabold text-slate-900">Rate your current skills</h1>
         <p className="mt-2 text-slate-500">Be honest — the AI uses this to find your knowledge gaps for the {role.title} role.</p>
       </div>

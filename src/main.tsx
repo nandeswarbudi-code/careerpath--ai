@@ -4,8 +4,17 @@ import './index.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 
+function readSavedTheme(): 'light' | 'dark' {
+  try {
+    const saved = localStorage.getItem('cp-theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
 // Apply saved theme on load
-const savedTheme = localStorage.getItem('cp-theme') ?? 'light';
+const savedTheme = readSavedTheme();
 document.documentElement.setAttribute('data-theme', savedTheme);
 
 const rootEl = document.getElementById('root');

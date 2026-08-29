@@ -26,7 +26,7 @@ export default function RoleSelect({ selected, onSelect, onNext }: Props) {
   return (
     <div>
       <div className="mb-8">
-        <div className="text-sm font-semibold uppercase tracking-wider text-indigo-500">Step 1 · Choose Dream Role</div>
+        <div className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>Step 1 · Choose Dream Role</div>
         <h1 className="mt-1 text-3xl font-extrabold text-slate-900">What's your dream role?</h1>
         <p className="mt-2 text-slate-500">
           {ROLE_CATALOG.length} real-world roles across engineering, data, HR, finance, healthcare, government and more.

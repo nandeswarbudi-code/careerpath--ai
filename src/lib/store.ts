@@ -65,12 +65,25 @@ const EMPTY_RESUME: ResumeData = {
   name: '', email: '', phone: '', summary: '', education: '', experience: '', skills: '', projects: '',
 };
 
+function readStoredTheme(): 'light' | 'dark' {
+  try {
+    const saved = localStorage.getItem('cp-theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
 export const useAppStore = create<AppState>()(
   immer((set, get) => ({
-    theme: (localStorage.getItem('cp-theme') as 'light' | 'dark') ?? 'light',
+    theme: readStoredTheme(),
     toggleTheme: () => set((s) => {
       s.theme = s.theme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('cp-theme', s.theme);
+      try {
+        localStorage.setItem('cp-theme', s.theme);
+      } catch {
+        /* ignore storage write failures */
+      }
       document.documentElement.setAttribute('data-theme', s.theme);
     }),
 
@@ -215,11 +228,11 @@ export const useAppStore = create<AppState>()(
           s.maxReached = p.maxReached ?? 0;
           s.history = [...(p.history ?? [])].slice(0, 20);
           s.syncState = 'synced';
+          s.cloudRestoreInFlight = false;
         });
-      } catch {
+      } catch (err) {
+        console.error('[Auth] Cloud restore failed:', err);
         set({ syncState: 'error', cloudRestoreInFlight: false });
-      } finally {
-        set({ cloudRestoreInFlight: false });
       }
     },
 
@@ -242,7 +255,8 @@ export const useAppStore = create<AppState>()(
       try {
         await saveProgress(uid, progress);
         set({ syncState: 'synced' });
-      } catch {
+      } catch (err) {
+        console.error('[Auth] Cloud save failed:', err);
         set({ syncState: 'error' });
       }
     },
