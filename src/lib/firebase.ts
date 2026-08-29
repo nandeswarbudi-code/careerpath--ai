@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User,
 } from 'firebase/auth';
@@ -16,20 +17,31 @@ import type { ResumeData } from '../types';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? 'AIzaSyBBftuCD-ZQ6J-vJ0xGZxVKSB68jf2sZuE',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'ai-interview-practice-pl-98fed.firebaseapp.com',
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL ?? 'https://ai-interview-practice-pl-98fed-default-rtdb.firebaseio.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'ai-interview-practice-pl-98fed',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? 'ai-interview-practice-pl-98fed.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '1063054204495',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '1:1063054204495:web:2688a503d48390afb1543a',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? 'G-X3JBPH26ZE',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL ?? '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? '',
 };
 
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const requiredFirebaseFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'] as const;
+export const firebaseReady = requiredFirebaseFields.every((field) => Boolean(firebaseConfig[field]));
+
+if (!firebaseReady) {
+  console.warn('[Firebase] Missing required environment variables. Add them to a .env file before enabling Google sign-in or Firestore.');
+}
+
+// Initialize Firebase only when credentials are present; otherwise auth and db are unavailable.
+const app = firebaseReady ? initializeApp(firebaseConfig) : null;
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
+
+if (!app || !auth || !db) {
+  console.warn('[Firebase] Firebase is not configured. Auth and Firestore features are disabled until env values are added.');
+}
 
 // Analytics — disable on localhost and unsupported browsers to avoid unnecessary network noise.
 const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -60,28 +72,59 @@ const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export function signInWithGoogle(): Promise<User> {
-  return signInWithPopup(auth, googleProvider).then((cred) => cred.user);
+  if (!auth) {
+    return Promise.reject(new Error('Firebase is not configured. Add your Firebase values to .env before using Google sign-in.'));
+  }
+
+  return signInWithPopup(auth, googleProvider)
+    .then((cred) => cred.user)
+    .catch((err: unknown) => {
+      const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: string }).code) : '';
+      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
+        return signInWithRedirect(auth, googleProvider).then(() => {
+          throw new Error('Google sign-in redirected. Complete the sign-in flow in the browser window.');
+        });
+      }
+      throw err;
+    });
 }
 
 export function signInWithEmail(email: string, password: string): Promise<User> {
+  if (!auth) {
+    return Promise.reject(new Error('Firebase is not configured. Add your Firebase values to .env before using email sign-in.'));
+  }
   return signInWithEmailAndPassword(auth, email, password).then((cred) => cred.user);
 }
 
 export function signUpWithEmail(email: string, password: string): Promise<User> {
+  if (!auth) {
+    return Promise.reject(new Error('Firebase is not configured. Add your Firebase values to .env before creating an account.'));
+  }
   return createUserWithEmailAndPassword(auth, email, password).then((cred) => cred.user);
 }
 
 export function signOutUser(): Promise<void> {
+  if (!auth) return Promise.resolve();
   return signOut(auth);
 }
 
 export function watchAuth(callback: (user: User | null) => void): () => void {
+  if (!auth) {
+    callback(null);
+    return () => undefined;
+  }
   return onAuthStateChanged(auth, callback);
 }
 
 /** Converts Firebase auth error codes into friendly messages. */
 export function friendlyAuthError(err: unknown): string {
   const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code: unknown }).code) : '';
+  const message = typeof err === 'object' && err !== null && 'message' in err ? String((err as { message?: string }).message) : '';
+
+  if (message.includes('Firebase is not configured')) {
+    return 'Firebase is not configured yet. Add your Firebase environment values to the .env file and restart the app.';
+  }
+
   switch (code) {
     case 'auth/invalid-email': return 'That email address looks invalid.';
     case 'auth/user-not-found':
@@ -90,7 +133,7 @@ export function friendlyAuthError(err: unknown): string {
     case 'auth/email-already-in-use': return 'An account with this email already exists — try signing in.';
     case 'auth/weak-password': return 'Password must be at least 6 characters.';
     case 'auth/popup-closed-by-user': return 'Sign-in popup was closed before completing.';
-    case 'auth/popup-blocked': return 'Your browser blocked the sign-in popup. Allow popups and retry.';
+    case 'auth/popup-blocked': return 'Your browser blocked the sign-in popup. Allow popups and retry, or use the redirect flow.';
     case 'auth/network-request-failed': return 'Network error — check your connection and try again.';
     case 'auth/unauthorized-domain': return 'This domain is not authorized for Google sign-in. Add localhost or your deployed domain in Firebase Authentication > Settings > Authorized domains.';
     case 'auth/operation-not-allowed': return 'Google sign-in is not enabled in Firebase Authentication.';
