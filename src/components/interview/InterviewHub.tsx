@@ -10,6 +10,7 @@ import InterviewReport from './InterviewReport';
 import LiveInterviewSession from '../liveInterview/LiveInterviewSession';
 import LiveInterviewReport from '../liveInterview/LiveInterviewReport';
 import type { LiveInterviewMessage, FinalFeedbackResponse } from '../../types';
+import type { VideoBehaviorMetrics } from '../../types';
 
 interface Props {
   defaultRoleId?: string;
@@ -27,7 +28,7 @@ type Phase =
   | { name: 'session'; role: InterviewRole; format: FormatId; useVideo: boolean }
   | { name: 'live'; role: InterviewRole; mode: 'video' | 'voice' }
   | { name: 'report'; role: InterviewRole; format: FormatId; records: AnswerRecord[] }
-  | { name: 'live-report'; role: InterviewRole; mode: 'video' | 'voice'; messages: LiveInterviewMessage[]; feedback: FinalFeedbackResponse | null };
+  | { name: 'live-report'; role: InterviewRole; mode: 'video' | 'voice'; messages: LiveInterviewMessage[]; feedback: FinalFeedbackResponse | null; videoMetrics: VideoBehaviorMetrics | null };
 
 export default function InterviewHub({ defaultRoleId, resumeSkills, resumeProjects, history, onResult, onExit }: Props) {
   const [phase, setPhase] = useState<Phase>({ name: 'setup' });
@@ -70,9 +71,9 @@ export default function InterviewHub({ defaultRoleId, resumeSkills, resumeProjec
         mode={phase.mode}
         resumeSkills={resumeSkills}
         resumeProjects={resumeProjects}
-        onFinish={(messages, feedback) => {
+        onFinish={(messages, feedback, videoMetrics) => {
           onResult(feedback?.overallScore ?? 0, phase.role.title, `Live AI ${phase.mode} Interview`);
-          setPhase({ name: 'live-report', role: phase.role, mode: phase.mode, messages, feedback });
+          setPhase({ name: 'live-report', role: phase.role, mode: phase.mode, messages, feedback, videoMetrics });
         }}
         onAbort={() => setPhase({ name: 'setup' })}
       />
@@ -86,6 +87,7 @@ export default function InterviewHub({ defaultRoleId, resumeSkills, resumeProjec
         mode={phase.mode}
         messages={phase.messages}
         feedback={phase.feedback}
+        videoMetrics={phase.videoMetrics}
         onRetry={() => setPhase({ name: 'setup' })}
         onDone={onExit}
       />

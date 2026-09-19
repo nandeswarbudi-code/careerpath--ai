@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Role } from '../types';
+import { runCodeInSandbox } from '../lib/codeRunner';
 
 type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
@@ -103,49 +104,24 @@ export default function CodingPractice({ role }: Props) {
 
   const pick = (p: Problem) => { setSelected(p); setCode(p.starter); setOutput([]); setShowHint(false); };
 
-  const run = () => {
+  const run = async (): Promise<string[]> => {
     setOutput(['🔄 Running...']);
-
-    // Safety timeout — kills execution after 3 seconds (catches infinite loops)
-    let timedOut = false;
-    const safetyTimer = setTimeout(() => {
-      timedOut = true;
-      setOutput(['❌ Execution timed out (3 seconds).', '💡 Check for infinite loops or very long operations.']);
-    }, 3000);
-
-    setTimeout(() => {
-      if (timedOut) return;
-      try {
-        const logs: string[] = [];
-        const origLog = console.log;
-        console.log = (...args: unknown[]) => {
-          if (logs.length > 50) throw new Error('Too many console.log calls (max 50)');
-          logs.push(args.map(String).join(' '));
-        };
-
-        const fn = new Function(code + '\n\n// Auto-test\ntry { ' +
-          (selected.id.startsWith('e1') ? 'console.log(reverse("hello"))' :
-           selected.id.startsWith('e2') ? 'console.log(findMax([3,7,2,9,1]))' :
-           selected.id.startsWith('e4') ? 'console.log(isPalindrome("racecar"))' :
-           selected.id.startsWith('e6') ? 'console.log(sum([1,2,3,4,5]))' :
-           selected.id.startsWith('e10') ? 'console.log(factorial(5))' :
-           'console.log("Function defined — add your own tests below")') +
-          ' } catch(e) { console.log("⚠️ " + e.message) }');
-        fn();
-
-        console.log = origLog;
-        clearTimeout(safetyTimer);
-
-        if (logs.length > 0) {
-          setOutput(['✅ Code executed:', ...logs.map(l => `  → ${l}`)]);
-        } else {
-          setOutput(['✅ Code ran without errors.', '💡 Add console.log() to see output.']);
-        }
-      } catch (err) {
-        clearTimeout(safetyTimer);
-        setOutput([`❌ Error: ${(err as Error).message}`, '💡 Check your syntax and try again.']);
-      }
-    }, 300);
+    const test = selected.id.startsWith('e1') ? 'console.log(reverse("hello"))' :
+      selected.id.startsWith('e2') ? 'console.log(findMax([3,7,2,9,1]))' :
+      selected.id.startsWith('e4') ? 'console.log(isPalindrome("racecar"))' :
+      selected.id.startsWith('e6') ? 'console.log(sum([1,2,3,4,5]))' :
+      selected.id.startsWith('e10') ? 'console.log(factorial(5))' :
+      'console.log("Function defined — add your own tests below")';
+    try {
+      const logs = await runCodeInSandbox(code, `try { ${test} } catch (e) { console.log("⚠️ " + e.message) }`);
+      const result = logs.length > 0 ? ['✅ Code executed:', ...logs.map((line) => `  → ${line}`)] : ['✅ Code ran without errors.', '💡 Add console.log() to see output.'];
+      setOutput(result);
+      return result;
+    } catch (err) {
+      const result = [`❌ Error: ${(err as Error).message}`, '💡 Check your syntax or infinite loops and try again.'];
+      setOutput(result);
+      return result;
+    }
   };
 
   return (
@@ -211,7 +187,7 @@ export default function CodingPractice({ role }: Props) {
 
           <div className="flex gap-2">
             <button onClick={run} className="btn btn-ghost text-xs flex-1">▶ Run Code</button>
-            <button onClick={() => { run(); setOutput((prev) => [...prev, '', '🚀 Solution submitted for review.']); }} className="btn btn-primary text-xs flex-1">Submit & Run</button>
+            <button onClick={async () => { await run(); setOutput((prev) => [...prev, '', '🚀 Solution submitted for review.']); }} className="btn btn-primary text-xs flex-1">Submit & Run</button>
           </div>
 
           {output.length > 0 && (

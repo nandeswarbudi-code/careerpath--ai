@@ -6,6 +6,22 @@
 let warmedUp = false;
 let cachedVoice: SpeechSynthesisVoice | null = null;
 
+export type SpeechEvent =
+  | { type: 'start'; text: string }
+  | { type: 'boundary'; text: string; charIndex: number }
+  | { type: 'end' };
+
+const speechListeners = new Set<(event: SpeechEvent) => void>();
+
+function notifySpeech(event: SpeechEvent): void {
+  speechListeners.forEach((listener) => listener(event));
+}
+
+export function subscribeToSpeechEvents(listener: (event: SpeechEvent) => void): () => void {
+  speechListeners.add(listener);
+  return () => speechListeners.delete(listener);
+}
+
 export function ttsSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
 }
@@ -61,7 +77,16 @@ export function speak(text: string): Promise<void> {
           const voice = pickVoice();
           if (voice) u.voice = voice;
           let keepAlive: ReturnType<typeof setInterval> | null = null;
-          const cleanup = () => { if (keepAlive) { clearInterval(keepAlive); keepAlive = null; } resolve(); };
+          let settled = false;
+          const cleanup = () => {
+            if (settled) return;
+            settled = true;
+            if (keepAlive) { clearInterval(keepAlive); keepAlive = null; }
+            notifySpeech({ type: 'end' });
+            resolve();
+          };
+          u.onstart = () => notifySpeech({ type: 'start', text });
+          u.onboundary = (event) => notifySpeech({ type: 'boundary', text, charIndex: event.charIndex });
           u.onend = cleanup;
           u.onerror = cleanup;
           keepAlive = setInterval(() => {
@@ -75,6 +100,8 @@ export function speak(text: string): Promise<void> {
               const r = new SpeechSynthesisUtterance(text);
               r.rate = 0.92; r.pitch = 0.95; r.volume = 1.0; r.lang = 'en-US';
               const v2 = pickVoice(); if (v2) r.voice = v2;
+              r.onstart = () => notifySpeech({ type: 'start', text });
+              r.onboundary = (event) => notifySpeech({ type: 'boundary', text, charIndex: event.charIndex });
               r.onend = cleanup; r.onerror = cleanup;
               window.speechSynthesis.speak(r);
             }
@@ -87,7 +114,7 @@ export function speak(text: string): Promise<void> {
 
 export function stopSpeaking(): void {
   if (!ttsSupported()) return;
-  try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+  try { window.speechSynthesis.cancel(); notifySpeech({ type: 'end' }); } catch { /* ignore */ }
 }
 
 export function isTTSSpeaking(): boolean {

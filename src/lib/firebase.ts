@@ -12,8 +12,8 @@ import {
   signOut,
   type User,
 } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
-import type { ResumeData } from '../types';
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, limit, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import type { ResumeData, StepId } from '../types';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -35,7 +35,7 @@ if (!firebaseReady) {
 }
 
 // Initialize Firebase only when credentials are present; otherwise auth and db are unavailable.
-const app = firebaseReady ? initializeApp(firebaseConfig) : null;
+const app = firebaseReady ? initializeApp(firebaseConfig) : undefined;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 
@@ -108,6 +108,11 @@ export function signOutUser(): Promise<void> {
   return signOut(auth);
 }
 
+export async function getAuthToken(): Promise<string | null> {
+  const user = auth?.currentUser;
+  return user ? user.getIdToken() : null;
+}
+
 export function watchAuth(callback: (user: User | null) => void): () => void {
   if (!auth) {
     callback(null);
@@ -164,9 +169,11 @@ export interface CloudProgress {
   interviewBest: number | null;
   maxReached: number;
   history: InterviewHistoryEntry[];
+  step?: StepId;
 }
 
 export async function saveProgress(uid: string, progress: CloudProgress): Promise<void> {
+  if (!db) throw new Error('Firebase is not configured');
   try {
     await setDoc(
       doc(db, 'users', uid),
@@ -180,6 +187,7 @@ export async function saveProgress(uid: string, progress: CloudProgress): Promis
 }
 
 export async function loadProgress(uid: string): Promise<CloudProgress | null> {
+  if (!db) return null;
   try {
     const snap = await getDoc(doc(db, 'users', uid));
     if (!snap.exists()) return null;
@@ -193,17 +201,25 @@ export async function loadProgress(uid: string): Promise<CloudProgress | null> {
       completedCerts: d.completedCerts ?? [],
       resume: {
         name: d.resume?.name ?? '', email: d.resume?.email ?? '', phone: d.resume?.phone ?? '',
+        linkedin: d.resume?.linkedin ?? '', portfolio: d.resume?.portfolio ?? '',
+        experienceYears: d.resume?.experienceYears ?? '', format: d.resume?.format ?? 'chronological',
         summary: d.resume?.summary ?? '', education: d.resume?.education ?? '',
         experience: d.resume?.experience ?? '', skills: d.resume?.skills ?? '', projects: d.resume?.projects ?? '',
       },
       interviewBest: d.interviewBest ?? null,
       maxReached: d.maxReached ?? 0,
       history: Array.isArray(d.history) ? d.history.slice(0, 20) : [],
+      step: d.step,
     };
   } catch (err) {
     console.error('[Firebase] loadProgress failed:', err);
     throw err;
   }
+}
+
+export async function deleteProgress(uid: string): Promise<void> {
+  if (!db) return;
+  await deleteDoc(doc(db, 'users', uid));
 }
 
 // ── Admin: read all users' progress from Firestore (client-side) ──
@@ -220,34 +236,12 @@ export interface AdminUserData {
 }
 
 /**
- * Fetch all user documents from the Firestore `users` collection.
- *
- * IMPORTANT: This requires Firestore security rules that allow
- * authenticated users to read the entire `users` collection:
- *
- *   match /users/{uid} {
- *     allow read: if request.auth != null;
- *     allow write: if request.auth != null && request.auth.uid == uid;
- *   }
- *
- * If the collection-wide read fails (permission denied), it falls back
- * to reading only the current user's own document.
+ * Read only the current user's progress. Admin dashboards should use a
+ * privileged server endpoint rather than exposing the users collection to clients.
  */
 export async function fetchAllUsersProgress(): Promise<AdminUserData[]> {
-  // First try: read the entire users collection
-  try {
-    const snap = await getDocs(collection(db, 'users'));
-    if (snap.docs.length > 0) {
-      console.info(`[Admin] Read ${snap.docs.length} user docs from Firestore.`);
-      return snap.docs.map(parseUserDoc);
-    }
-  } catch (err) {
-    console.warn('[Admin] Collection-wide read failed (likely Firestore rules). Error:', err);
-    console.warn('[Admin] Update your Firestore rules to: match /users/{uid} { allow read: if request.auth != null; }');
-  }
-
-  // Fallback: read only the current user's document
-  const currentUser = auth.currentUser;
+  if (!db || !auth) return [];
+  const currentUser = auth?.currentUser;
   if (currentUser) {
     try {
       const myDoc = await getDoc(doc(db, 'users', currentUser.uid));
@@ -300,6 +294,7 @@ export interface FeedbackEntry {
 
 /** Fetch feedback from Firestore `feedback` collection. */
 export async function fetchFeedback(): Promise<FeedbackEntry[]> {
+  if (!db) return [];
   try {
     const q2 = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'), limit(20));
     const snap = await getDocs(q2);

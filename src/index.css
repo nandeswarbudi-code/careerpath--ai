@@ -226,7 +226,7 @@ body { background: var(--bg); color: var(--text); transition: background 0.3s, c
 .glass { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
 .font-display { font-family: 'Inter', system-ui, sans-serif; }
 .text-gradient { color: var(--primary); }
-.chat-bubble-interviewer { background: var(--badge-blue-bg); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; padding: 12px 16px; }
+.chat-bubble-interviewer { background: #123f52; border: 1px solid #2e718b; border-radius: 14px 14px 14px 4px; padding: 12px 16px; color: #FFFFFF; }
 .chat-bubble-candidate { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 14px 14px 4px 14px; padding: 12px 16px; }
 
 /* Theme toggle button */

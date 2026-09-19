@@ -177,6 +177,13 @@ export default function App() {
         <Suspense fallback={<Loader />}>
           {view === 'journey' && (
             <>
+              {!role && step !== 'role' && (
+                <RoleSelect
+                  selected={null}
+                  onSelect={setRole}
+                  onNext={() => setStep('assessment')}
+                />
+              )}
               {step === 'role' && (
                 <RoleSelect
                   selected={role}

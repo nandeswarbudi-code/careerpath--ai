@@ -19,6 +19,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GoogleGenAI } from '@google/genai';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth as getAdminAuth, type Auth as AdminAuth } from 'firebase-admin/auth';
 
 const app = express();
 app.use(cors());
@@ -29,6 +31,56 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, 'data');
 const STORE_FILE = join(DATA_DIR, 'progress.json');
 const PROGRESS_API_KEY = (process.env.PROGRESS_API_KEY ?? '').trim();
+const aiRequests = new Map<string, { count: number; resetAt: number }>();
+const AI_WINDOW_MS = 60_000;
+const AI_REQUESTS_PER_WINDOW = 30;
+let adminAuth: AdminAuth | null = null;
+
+try {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const adminApp = getApps()[0] ?? initializeApp(
+    projectId && clientEmail && privateKey
+      ? { credential: cert({ projectId, clientEmail, privateKey }) }
+      : { credential: applicationDefault() },
+  );
+  adminAuth = getAdminAuth(adminApp);
+} catch {
+  console.warn('Firebase Admin credentials are not configured; AI routes require Firebase authentication and are disabled.');
+}
+
+function requireAiRateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const now = Date.now();
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const current = aiRequests.get(key);
+  if (!current || current.resetAt <= now) {
+    aiRequests.set(key, { count: 1, resetAt: now + AI_WINDOW_MS });
+    return next();
+  }
+  if (current.count >= AI_REQUESTS_PER_WINDOW) {
+    return res.status(429).json({ error: 'Too many AI requests. Please try again shortly.' });
+  }
+  current.count += 1;
+  next();
+}
+
+async function requireAiAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!adminAuth) return res.status(503).json({ error: 'AI authentication is not configured' });
+  const header = req.get('authorization') ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  try {
+    await adminAuth.verifyIdToken(token);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid authentication token' });
+  }
+}
+
+function boundedText(value: unknown, maxLength: number): string {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
 
 function requireProgressAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   if (!PROGRESS_API_KEY) {
@@ -91,9 +143,12 @@ app.get('/api/health', (_req, res) => {
 });
 
 // AI interview evaluation — semantic LLM analysis
-app.post('/api/ai/evaluate', async (req, res) => {
+app.post('/api/ai/evaluate', requireAiAuth, requireAiRateLimit, async (req, res) => {
   if (!geminiOk) return res.status(503).json({ error: 'Gemini not configured' });
-  const { roleTitle, question, answer, resumeSummary } = req.body;
+  const roleTitle = boundedText(req.body.roleTitle, 120);
+  const question = boundedText(req.body.question, 2000);
+  const answer = boundedText(req.body.answer, 6000);
+  const resumeSummary = boundedText(req.body.resumeSummary, 3000);
   if (!question || !answer) return res.status(400).json({ error: 'question and answer required' });
 
   const prompt = `You are a senior ${roleTitle || 'technical'} interviewer. Evaluate this answer.
@@ -124,9 +179,15 @@ Be honest. Reference specific parts of the answer.`;
 });
 
 // Live AI interview — next question
-app.post('/api/ai/interview-next', async (req, res) => {
+app.post('/api/ai/interview-next', requireAiAuth, requireAiRateLimit, async (req, res) => {
   if (!geminiOk) return res.status(503).json({ error: 'Gemini not configured' });
-  const { roleTitle, phase, messages, resumeSummary } = req.body;
+  const roleTitle = boundedText(req.body.roleTitle, 120);
+  const phase = boundedText(req.body.phase, 40);
+  const resumeSummary = boundedText(req.body.resumeSummary, 3000);
+  const messages = Array.isArray(req.body.messages) ? req.body.messages.slice(-30).map((message: { role?: unknown; text?: unknown }) => ({
+    role: message.role === 'interviewer' ? 'interviewer' : 'candidate',
+    text: boundedText(message.text, 2000),
+  })) : [];
 
   const history = (messages || []).map((m: { role: string; text: string }) =>
     `${m.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${m.text}`
@@ -156,9 +217,13 @@ Return ONLY JSON:
 });
 
 // Live AI interview — final feedback
-app.post('/api/ai/interview-feedback', async (req, res) => {
+app.post('/api/ai/interview-feedback', requireAiAuth, requireAiRateLimit, async (req, res) => {
   if (!geminiOk) return res.status(503).json({ error: 'Gemini not configured' });
-  const { roleTitle, messages } = req.body;
+  const roleTitle = boundedText(req.body.roleTitle, 120);
+  const messages = Array.isArray(req.body.messages) ? req.body.messages.slice(-40).map((message: { role?: unknown; text?: unknown }) => ({
+    role: message.role === 'interviewer' ? 'interviewer' : 'candidate',
+    text: boundedText(message.text, 2000),
+  })) : [];
 
   const history = (messages || []).map((m: { role: string; text: string }) =>
     `${m.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${m.text}`
@@ -190,9 +255,13 @@ Return ONLY JSON:
 });
 
 // Cover letter
-app.post('/api/ai/cover-letter', async (req, res) => {
+app.post('/api/ai/cover-letter', requireAiAuth, requireAiRateLimit, async (req, res) => {
   if (!geminiOk) return res.status(503).json({ error: 'Gemini not configured' });
-  const { name, roleTitle, company, resumeText, tone } = req.body;
+  const name = boundedText(req.body.name, 120);
+  const roleTitle = boundedText(req.body.roleTitle, 120);
+  const company = boundedText(req.body.company, 160);
+  const resumeText = boundedText(req.body.resumeText, 6000);
+  const tone = boundedText(req.body.tone, 40);
   const prompt = `Write a ${tone || 'professional'} cover letter for ${roleTitle} at ${company || 'the company'}.
 Candidate: ${name || 'The candidate'}
 Resume: ${resumeText || 'Not provided'}
@@ -206,13 +275,14 @@ Return only the letter text, under 300 words.`;
 // Progress CRUD
 app.get('/api/progress/:uid', requireProgressAuth, (req, res) => {
   const store = readStore();
-  const p = store[req.params.uid];
+  const uid = typeof req.params.uid === 'string' ? req.params.uid : '';
+  const p = store[uid];
   if (!p) return res.status(404).json({ error: 'Not found' });
   res.json({ progress: p });
 });
 
 app.put('/api/progress/:uid', requireProgressAuth, (req, res) => {
-  const uid = req.params.uid;
+  const uid = typeof req.params.uid === 'string' ? req.params.uid : '';
   const tokenUid = req.get('x-user-uid');
   if (tokenUid && tokenUid !== uid) {
     return res.status(403).json({ error: 'Forbidden' });

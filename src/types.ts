@@ -78,6 +78,10 @@ export interface ResumeData {
   name: string;
   email: string;
   phone: string;
+  linkedin: string;
+  portfolio: string;
+  experienceYears: string;
+  format: 'chronological' | 'combination' | 'functional';
   summary: string;
   education: string;
   experience: string;
@@ -128,4 +132,13 @@ export interface FinalFeedbackResponse {
   weaknesses: string[];
   improvements: string[];
   summary: string;
+}
+
+export interface VideoBehaviorMetrics {
+  samples: number;
+  faceVisiblePercent: number;
+  centeredPercent: number;
+  lookingForwardPercent: number;
+  steadyPercent: number;
+  status: 'measured' | 'unavailable';
 }

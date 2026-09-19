@@ -3,7 +3,8 @@ import { useSpeechToText } from '../../lib/speech';
 import { speak, stopSpeaking, ttsSupported, warmUpTTS, isTTSSpeaking } from '../../lib/tts';
 import { fetchLiveInterviewQuestion, fetchLiveInterviewFeedback } from '../../lib/api';
 import type { InterviewRole } from '../../data/interviewRoles';
-import type { FinalFeedbackResponse, LiveInterviewMessage, LiveInterviewPhase } from '../../types';
+import type { FinalFeedbackResponse, LiveInterviewMessage, LiveInterviewPhase, VideoBehaviorMetrics } from '../../types';
+import { VideoBehaviorAnalyzer } from '../../lib/videoAnalysis';
 import AIAvatar from './AIAvatar';
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
   mode: 'video' | 'voice';
   resumeSkills: string[];
   resumeProjects: string;
-  onFinish: (messages: LiveInterviewMessage[], feedback: FinalFeedbackResponse | null) => void;
+  onFinish: (messages: LiveInterviewMessage[], feedback: FinalFeedbackResponse | null, videoMetrics: VideoBehaviorMetrics | null) => void;
   onAbort: () => void;
 }
 
@@ -32,6 +33,11 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
   const [started, setStarted] = useState(false);
   const [typedAnswer, setTypedAnswer] = useState('');
   const [answerMode, setAnswerMode] = useState<'voice' | 'type'>('voice');
+  const [avatarStyle, setAvatarStyle] = useState<'maya' | 'daniel' | 'nova'>('nova');
+  const [cameraConsent, setCameraConsent] = useState(false);
+  const [calibrated, setCalibrated] = useState(mode !== 'video');
+  const [analysisEnabled, setAnalysisEnabled] = useState(mode === 'video');
+  const finishRef = useRef(false);
 
   // Real-time lip-sync state driven by actual TTS engine
   const [avatarSpeaking, setAvatarSpeaking] = useState(false);
@@ -41,6 +47,16 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const videoAnalyzerRef = useRef<VideoBehaviorAnalyzer | null>(null);
+  const [videoMetrics, setVideoMetrics] = useState<VideoBehaviorMetrics | null>(null);
+
+  const attachVideo = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element;
+    if (element && streamRef.current) {
+      element.srcObject = streamRef.current;
+      void element.play().catch(() => undefined);
+    }
+  }, []);
 
   // Poll speechSynthesis.speaking at 60fps for real lip-sync
   useEffect(() => {
@@ -54,17 +70,36 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
 
   // Camera setup (video mode)
   useEffect(() => {
-    if (mode !== 'video') return;
+    if (mode !== 'video' || !cameraConsent) return;
     let cancelled = false;
     navigator.mediaDevices?.getUserMedia({ video: true, audio: false })
       .then((stream) => {
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          void videoRef.current.play().catch(() => undefined);
+        }
       })
       .catch(() => setError('Camera access denied. Continuing without self-view.'));
     return () => { cancelled = true; streamRef.current?.getTracks().forEach((t) => t.stop()); };
-  }, [mode]);
+  }, [mode, cameraConsent]);
+
+  useEffect(() => {
+    if (mode !== 'video' || !cameraConsent || !analysisEnabled) return;
+    const analyzer = new VideoBehaviorAnalyzer();
+    videoAnalyzerRef.current = analyzer;
+    let interval = 0;
+    let cancelled = false;
+    void analyzer.initialize().then(() => {
+      if (cancelled) return;
+      interval = window.setInterval(() => {
+        if (videoRef.current) analyzer.analyze(videoRef.current);
+        setVideoMetrics(analyzer.metrics());
+      }, 250);
+    }).catch(() => setError('Camera is available, but local behavior analysis could not load. The interview will continue without visual scoring.'));
+    return () => { cancelled = true; window.clearInterval(interval); analyzer.close(); videoAnalyzerRef.current = null; };
+  }, [mode, cameraConsent, analysisEnabled]);
 
   // Auto-scroll transcript
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -74,34 +109,27 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
     async (prevMessages: LiveInterviewMessage[], nextPhase: LiveInterviewPhase) => {
       setBusy(true);
       setError(null);
-      const summary = [resumeSkills.join(', '), resumeProjects].filter(Boolean).join(' | ');
-
-      const next = await fetchLiveInterviewQuestion({
-        roleTitle: role.title, format: mode,
-        resumeSummary: summary || undefined,
-        messages: prevMessages, phase: nextPhase,
-      });
-
-      const fullText = [next.transitionalPhrase, next.text].filter(Boolean).join(' ');
-      const interviewerMsg: LiveInterviewMessage = { role: 'interviewer', text: fullText };
-      const updated = [...prevMessages, interviewerMsg];
-      setMessages(updated);
-      setPhase(next.phase);
-
-      // Speak the question aloud
-      if (ttsEnabled) {
-        await speak(fullText);
-      }
-
-      if (next.isFinal) {
-        setFinished(true);
-        const fb = await fetchLiveInterviewFeedback(role.title, updated);
-        setFeedback(fb);
-        onFinish(updated, fb);
-      }
-      setBusy(false);
+      try {
+        const summary = [resumeSkills.join(', '), resumeProjects].filter(Boolean).join(' | ');
+        const next = await fetchLiveInterviewQuestion({ roleTitle: role.title, format: mode, resumeSummary: summary || undefined, messages: prevMessages, phase: nextPhase });
+        const fullText = [next.transitionalPhrase, next.text].filter(Boolean).join(' ');
+        const interviewerMsg: LiveInterviewMessage = { role: 'interviewer', text: fullText };
+        const updated = [...prevMessages, interviewerMsg];
+        setMessages(updated);
+        setPhase(next.phase);
+        if (ttsEnabled) await speak(fullText);
+        if (next.isFinal && !finishRef.current) {
+          finishRef.current = true;
+          setFinished(true);
+          const fb = await fetchLiveInterviewFeedback(role.title, updated);
+          setFeedback(fb);
+          onFinish(updated, fb, videoMetrics);
+        }
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'The interviewer could not respond. Please retry.');
+      } finally { setBusy(false); }
     },
-    [role.title, mode, resumeSkills, resumeProjects, ttsEnabled, onFinish],
+    [role.title, mode, resumeSkills, resumeProjects, ttsEnabled, onFinish, videoMetrics],
   );
 
   // Start interview on user click (unlocks TTS)
@@ -163,12 +191,20 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
 
   // End the interview early with feedback
   const endEarly = async () => {
+    if (finishRef.current || busy) return;
+    finishRef.current = true;
     stopSpeaking();
     speech.stop();
     setFinished(true);
-    const fb = await fetchLiveInterviewFeedback(role.title, messages);
-    setFeedback(fb);
-    onFinish(messages, fb);
+    try {
+      const fb = await fetchLiveInterviewFeedback(role.title, messages);
+      setFeedback(fb);
+      onFinish(messages, fb, videoMetrics);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not finish the interview.');
+      finishRef.current = false;
+      setFinished(false);
+    }
   };
 
   // Repeat the last interviewer question
@@ -191,9 +227,48 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
 
   // ─── PRE-START SCREEN ─────────────────────────────────
   if (!started) {
+    if (mode === 'video' && !cameraConsent) {
+      return (
+        <div className="mx-auto max-w-lg text-center page-enter">
+          <AIAvatar isListening={false} isSpeaking={false} style={avatarStyle} />
+          <h2 className="mt-6 text-2xl font-extrabold font-display text-slate-100">Before your video interview</h2>
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">Your camera is used only on this device for the self-view and optional behavior signals. No video is recorded, uploaded, or used to analyze identity, age, race, attractiveness, or emotion.</p>
+          <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200">🔒 Free forever · Your mic audio and camera never leave this device — only text answers are sent for AI analysis.</p>
+          <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left text-sm text-slate-200">
+            <input type="checkbox" checked={cameraConsent} onChange={(e) => setCameraConsent(e.target.checked)} className="mt-1" />
+            <span>I consent to local camera use for this interview.</span>
+          </label>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {([
+              ['maya', 'Maya Chen', 'Behavioral'],
+              ['daniel', 'Daniel Brooks', 'Technical'],
+              ['nova', 'Nova AI', 'Systems'],
+            ] as const).map(([id, name, specialty]) => (
+              <button key={id} onClick={() => setAvatarStyle(id)} className={`rounded-xl px-2 py-2 text-xs font-bold transition ${avatarStyle === id ? 'bg-blue-500 text-white' : 'bg-white/10 text-slate-300 hover:bg-white/15'}`}>
+                <span className="block">{name}</span>
+                <span className="mt-0.5 block text-[10px] font-medium opacity-70">{specialty}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={handleStart} disabled={!cameraConsent} className="btn-primary mt-8 !px-10 !py-4 text-base disabled:cursor-not-allowed disabled:opacity-40">Continue to camera setup</button>
+          <button onClick={onAbort} className="mt-3 block mx-auto text-sm font-semibold text-slate-500 hover:text-slate-300 transition">← Go back</button>
+        </div>
+      );
+    }
+    if (mode === 'video' && !calibrated) {
+      return (
+        <div className="mx-auto max-w-lg text-center page-enter">
+          <h2 className="text-2xl font-extrabold font-display text-slate-100">Camera setup</h2>
+          <p className="mt-3 text-sm text-slate-400">Center your face, keep your shoulders visible, and use even lighting. This calibrates framing only.</p>
+          <video ref={attachVideo} autoPlay muted playsInline className="mt-6 aspect-video w-full rounded-3xl border border-emerald-400/40 bg-slate-900 object-cover" aria-label="Camera calibration preview" />
+          <button onClick={() => setCalibrated(true)} className="btn-primary mt-6 !px-10 !py-4">Camera looks good — continue</button>
+          <button onClick={onAbort} className="mt-3 block mx-auto text-sm font-semibold text-slate-500 hover:text-slate-300 transition">← Go back</button>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-lg text-center page-enter">
-        <AIAvatar isListening={false} isSpeaking={false} />
+        <AIAvatar isListening={false} isSpeaking={false} style={avatarStyle} />
         <h2 className="mt-6 text-2xl font-extrabold font-display text-slate-100">
           {mode === 'video' ? '🎥' : '🎙️'} {role.title} Interview
         </h2>
@@ -242,7 +317,7 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
         </div>
         <div className="flex items-center gap-2">
           <span className="badge badge-blue">{PHASE_LABELS[phase]}</span>
-          <button onClick={endEarly} className="rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-1.5 text-xs font-bold text-rose-400 transition hover:bg-rose-500/20">
+          <button onClick={endEarly} disabled={busy} className="rounded-full border border-rose-500/30 bg-rose-500/10 px-4 py-1.5 text-xs font-bold text-rose-400 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50">
             End Early
           </button>
         </div>
@@ -255,15 +330,20 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
         <div className="space-y-4">
           {mode === 'video' ? (
             <div className="space-y-4">
-              <AIAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} />
+              <AIAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} style={avatarStyle} />
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-                <video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full object-cover" />
+                <video ref={attachVideo} autoPlay muted playsInline className="aspect-video w-full object-cover" />
                 <p className="bg-slate-950 px-3 py-2 text-[11px] text-slate-500">You — local only, not recorded.</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+                {!analysisEnabled ? 'Visual behavior analysis is off · Camera remains local and is not recorded.' : videoMetrics?.status === 'measured'
+                  ? `Local behavior analysis active · Face visible ${videoMetrics.faceVisiblePercent}% · Framing ${videoMetrics.centeredPercent}%`
+                  : 'Loading local behavior analysis… Camera data stays on this device.'}
               </div>
             </div>
           ) : (
             <div className="premium-card rounded-3xl p-8 text-center">
-              <AIAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} />
+              <AIAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} style={avatarStyle} />
               <p className="mt-4 text-sm text-slate-500">Voice-only mode. Speak or type your answers.</p>
             </div>
           )}
@@ -291,6 +371,15 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
               <button onClick={skipQuestion} disabled={busy} className="rounded-full bg-white/5 px-4 py-2 text-xs font-bold text-amber-400 transition hover:bg-amber-500/10 disabled:opacity-30">
                 ⏭️ Skip question
               </button>
+              {mode === 'video' && (
+                <button
+                  onClick={() => setAnalysisEnabled((enabled) => !enabled)}
+                  className="rounded-full bg-white/5 px-4 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/10"
+                  aria-pressed={analysisEnabled}
+                >
+                  {analysisEnabled ? '📹 Analysis ON' : '📹 Analysis OFF'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -311,7 +400,7 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
                     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       {m.role === 'interviewer' ? '👔 Interviewer' : '🎤 You'}
                     </span>
-                    <span className="text-slate-200">{m.text}</span>
+                    <span className={m.role === 'interviewer' ? 'font-semibold text-white' : 'text-slate-200'}>{m.text}</span>
                   </div>
                 </div>
               ))}

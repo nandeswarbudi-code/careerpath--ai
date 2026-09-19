@@ -1,16 +1,17 @@
 import type { InterviewRole } from '../../data/interviewRoles';
-import type { FinalFeedbackResponse, LiveInterviewMessage } from '../../types';
+import type { FinalFeedbackResponse, LiveInterviewMessage, VideoBehaviorMetrics } from '../../types';
 
 interface Props {
   role: InterviewRole;
   mode: 'video' | 'voice';
   messages: LiveInterviewMessage[];
   feedback: FinalFeedbackResponse | null;
+  videoMetrics: VideoBehaviorMetrics | null;
   onRetry: () => void;
   onDone: () => void;
 }
 
-export default function LiveInterviewReport({ role, mode, messages, feedback, onRetry, onDone }: Props) {
+export default function LiveInterviewReport({ role, mode, messages, feedback, videoMetrics, onRetry, onDone }: Props) {
   return (
     <div>
       <div className="mb-8">
@@ -35,9 +36,9 @@ export default function LiveInterviewReport({ role, mode, messages, feedback, on
             ].map((d) => (
               <div key={d.label} className="rounded-2xl bg-slate-50 p-4 text-center">
                 <div className="text-2xl font-extrabold text-slate-900">{d.value}</div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{d.label}</div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                  <div className={`h-full rounded-full ${d.color}`} style={{ width: `${d.value}%` }} />
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-600">{d.label}</div>
+                <div className="mt-2 h-2.5 overflow-hidden rounded-full border border-slate-300 bg-slate-300">
+                  <div className={`h-full rounded-full ${d.color} shadow-[0_0_8px_currentColor]`} style={{ width: `${d.value}%` }} />
                 </div>
               </div>
             ))}
@@ -77,6 +78,25 @@ export default function LiveInterviewReport({ role, mode, messages, feedback, on
         <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-slate-500">No feedback was generated. The session may have ended early or the AI service was unavailable.</p>
         </div>
+      )}
+
+      {mode === 'video' && (
+        <section className="mb-8 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">🎥 Local Video Behavior Analysis</h2>
+          {videoMetrics?.status === 'measured' ? (
+            <>
+              <p className="mt-1 text-sm text-slate-600">Measured on this device only. Video was not recorded or uploaded, and these signals do not change your interview score.</p>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  ['Face visible', videoMetrics.faceVisiblePercent],
+                  ['Well framed', videoMetrics.centeredPercent],
+                  ['Looking forward', videoMetrics.lookingForwardPercent],
+                  ['Steady posture', videoMetrics.steadyPercent],
+                ].map(([label, value]) => <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center"><div className="text-xl font-extrabold text-slate-900">{value}%</div><div className="text-[10px] font-bold uppercase tracking-wide text-slate-700">{label}</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-300"><div className="h-full rounded-full bg-emerald-500 shadow-[0_0_7px_rgba(16,185,129,0.8)]" style={{ width: `${value}%` }} /></div></div>)}
+              </div>
+            </>
+          ) : <p className="mt-2 text-sm text-slate-600">Local video analysis was unavailable, so no visual behavior score was invented.</p>}
+        </section>
       )}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

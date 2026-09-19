@@ -28,6 +28,7 @@ export interface LocalState {
 }
 
 const KEY = 'careerpath-ai:v2';
+const JOURNEY_STEPS: StepId[] = ['role', 'assessment', 'roadmap', 'resume', 'interview', 'readiness', 'jobs'];
 
 export function loadLocal(): LocalState | null {
   try {
@@ -45,12 +46,14 @@ export function loadLocal(): LocalState | null {
       completedCerts: parsed.completedCerts ?? [],
       resume: {
         name: parsed.resume?.name ?? '', email: parsed.resume?.email ?? '', phone: parsed.resume?.phone ?? '',
+        linkedin: parsed.resume?.linkedin ?? '', portfolio: parsed.resume?.portfolio ?? '',
+        experienceYears: parsed.resume?.experienceYears ?? '', format: parsed.resume?.format ?? 'chronological',
         summary: parsed.resume?.summary ?? '', education: parsed.resume?.education ?? '',
         experience: parsed.resume?.experience ?? '', skills: parsed.resume?.skills ?? '', projects: parsed.resume?.projects ?? '',
       },
       interviewBest: parsed.interviewBest ?? null,
-      maxReached: parsed.maxReached ?? 0,
-      step: parsed.step ?? 'role',
+      maxReached: Math.max(0, Math.min(JOURNEY_STEPS.length - 1, Number(parsed.maxReached) || 0)),
+      step: JOURNEY_STEPS.includes(parsed.step as StepId) ? parsed.step as StepId : 'role',
       history: Array.isArray(parsed.history) ? parsed.history.slice(0, 20) : [],
     };
   } catch {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../lib/store';
 import { clearLocal } from '../lib/storage';
-import { signOutUser } from '../lib/firebase';
+import { deleteProgress, signOutUser } from '../lib/firebase';
 
 function ThemeSection() {
   const theme = useAppStore((s) => s.theme);
@@ -32,9 +32,12 @@ export default function Settings() {
   const [notif, setNotif] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     if (confirm('Are you sure? This cannot be undone.')) {
-      clearLocal(); resetJourney(); window.location.reload();
+      if (user) {
+        try { await deleteProgress(user.uid); } catch { setSyncState('error'); return; }
+      }
+      resetJourney(); clearLocal(); window.location.reload();
     }
   };
 

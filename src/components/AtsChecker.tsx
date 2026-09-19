@@ -34,20 +34,30 @@ export default function AtsChecker({ role, resume }: Props) {
 
   const analyze = () => {
     const keywords = role.skills.map((s) => s.name);
-    const resumeText = [resume.skills, resume.summary, resume.experience, resume.projects].join(' ').toLowerCase();
+    const resumeText = [resume.skills, resume.summary, resume.experience, resume.projects, resume.education].join(' ').toLowerCase();
     const m: string[] = [];
     const miss: string[] = [];
     keywords.forEach((kw) => {
-      (resumeText.includes(kw.toLowerCase()) ? m : miss).push(kw);
+      const normalizedKeyword = kw.toLowerCase().replace(/[^a-z0-9+#/.-]+/g, ' ').trim();
+      const keywordPattern = new RegExp(`(^|[^a-z0-9])${normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^a-z0-9])`, 'i');
+      (keywordPattern.test(resumeText) ? m : miss).push(kw);
     });
     setMatched(m);
     setMissing(miss);
-    setScore(Math.round((m.length / Math.max(keywords.length, 1)) * 100));
+    const keywordScore = (m.length / Math.max(keywords.length, 1)) * 55;
+    const completenessScore = [resume.name, resume.email, resume.phone, resume.linkedin, resume.portfolio, resume.experienceYears, resume.summary, resume.skills, resume.experience, resume.projects, resume.education]
+      .filter((value) => value.trim().length > 3).length / 11 * 20;
+    const impactScore = /\d/.test(`${resume.experience} ${resume.projects}`) ? 15 : 0;
+    const contactScore = (resume.email.includes('@') && resume.phone.trim() ? 7 : 0) + (resume.linkedin.trim() || resume.portfolio.trim() ? 3 : 0);
+    setScore(Math.round(keywordScore + completenessScore + impactScore + contactScore));
     const t: string[] = [];
     if (miss.length > 0) t.push(`Add missing keywords: "${miss.slice(0, 3).join('", "')}".`);
     if (resume.summary.length < 50) t.push('Expand your summary to 2-3 sentences highlighting achievements.');
     if (!/\d/.test(resume.experience + resume.projects)) t.push('Quantify achievements: "reduced load time by 40%", "managed 500+ users".');
     if (!resume.education.trim()) t.push('Add your education details for completeness.');
+    if (!resume.email.includes('@') || !resume.phone.trim()) t.push('Add a professional email and phone number so recruiters can contact you.');
+    if (!resume.experienceYears.trim()) t.push('Add years of experience so the recruiter can place your level quickly.');
+    if (!resume.linkedin.trim() && !resume.portfolio.trim()) t.push('Add a LinkedIn, portfolio, or GitHub link when relevant.');
     setTips(t);
     setAnalyzed(true);
   };
@@ -56,9 +66,9 @@ export default function AtsChecker({ role, resume }: Props) {
     <div className="fade-in space-y-6">
       <div>
         <div className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--primary)' }}>ATS Resume Checker</div>
-        <h1 className="mt-1 text-3xl font-extrabold" style={{ color: 'var(--text)' }}>Keyword Analysis — {role.title}</h1>
+        <h1 className="mt-1 text-3xl font-extrabold" style={{ color: 'var(--text)' }}>ATS Resume Quality — {role.title}</h1>
         <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
-          Compares your resume content against the {role.skills.length} key skills expected for this role.
+          Checks keyword coverage, resume completeness, measurable impact, and contact details against the {role.skills.length} key skills expected for this role.
           <br /><span className="text-xs italic">Note: This is rule-based keyword matching, not AI semantic analysis.</span>
         </p>
       </div>
@@ -73,7 +83,7 @@ export default function AtsChecker({ role, resume }: Props) {
           {/* Score */}
           <div className="card rounded-2xl p-6 text-center">
             <div className="text-5xl font-extrabold" style={{ color: score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>{score}%</div>
-            <div className="text-sm font-bold mt-1" style={{ color: 'var(--muted)' }}>ATS Match Score</div>
+            <div className="text-sm font-bold mt-1" style={{ color: 'var(--muted)' }}>ATS Quality Score</div>
             <div className="mt-3 progress-track"><div className="progress-fill" style={{ width: `${score}%` }} /></div>
             <button onClick={analyze} className="btn btn-ghost text-xs mt-4">↻ Re-analyze</button>
           </div>

@@ -62,7 +62,8 @@ export interface AppState {
 }
 
 const EMPTY_RESUME: ResumeData = {
-  name: '', email: '', phone: '', summary: '', education: '', experience: '', skills: '', projects: '',
+  name: '', email: '', phone: '', linkedin: '', portfolio: '', experienceYears: '', format: 'chronological',
+  summary: '', education: '', experience: '', skills: '', projects: '',
 };
 
 function readStoredTheme(): 'light' | 'dark' {
@@ -186,6 +187,8 @@ export const useAppStore = create<AppState>()(
         s.interviewBest = null;
         s.maxReached = 0;
         s.step = 'role';
+        s.resume = { ...EMPTY_RESUME };
+        s.history = [];
       }),
 
     restoreLocal: () => {
@@ -212,6 +215,21 @@ export const useAppStore = create<AppState>()(
       try {
         const p = await loadProgress(uid);
         if (!p) {
+          // A missing cloud record is a new account, not permission to upload
+          // another account's cached local state.
+          set((s) => {
+            s.role = null;
+            s.levels = {};
+            s.completedTasks = new Set();
+            s.completedResources = new Set();
+            s.completedProjects = new Set();
+            s.completedCerts = new Set();
+            s.resume = { ...EMPTY_RESUME };
+            s.interviewBest = null;
+            s.maxReached = 0;
+            s.history = [];
+            s.step = 'role';
+          });
           set({ syncState: 'idle', cloudRestoreInFlight: false });
           return;
         }
@@ -227,6 +245,7 @@ export const useAppStore = create<AppState>()(
           s.interviewBest = p.interviewBest ?? null;
           s.maxReached = p.maxReached ?? 0;
           s.history = [...(p.history ?? [])].slice(0, 20);
+          s.step = catalogRole ? (p.step ?? 'role') : 'role';
           s.syncState = 'synced';
           s.cloudRestoreInFlight = false;
         });
@@ -251,6 +270,7 @@ export const useAppStore = create<AppState>()(
         interviewBest: s.interviewBest,
         maxReached: s.maxReached,
         history: s.history,
+        step: s.step,
       };
       try {
         await saveProgress(uid, progress);
@@ -263,18 +283,3 @@ export const useAppStore = create<AppState>()(
   })),
 );
 
-function mergeSets(a: Set<string>, b: Set<string>): Set<string> {
-  return new Set([...a, ...b]);
-}
-
-function mergeHistory(local: InterviewHistoryEntry[], cloud: InterviewHistoryEntry[]): InterviewHistoryEntry[] {
-  const seen = new Set<string>();
-  return [...local, ...cloud]
-    .filter((e) => {
-      if (seen.has(e.date)) return false;
-      seen.add(e.date);
-      return true;
-    })
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 20);
-}

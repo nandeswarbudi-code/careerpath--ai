@@ -13,6 +13,8 @@ import {
   type AnswerRecord, type EngineQuestion, type SessionConfig,
 } from './interviewEngine';
 import { generateLocalQuestion, generateLocalFeedback } from './localInterviewer';
+import { getAuthToken } from './firebase';
+import { boundedScore } from './scoreUtils';
 import type { LiveInterviewContext, NextQuestionResponse, FinalFeedbackResponse, LiveInterviewMessage } from '../types';
 
 export type EngineSource = 'local-rules' | 'ai-gemini';
@@ -33,13 +35,14 @@ async function probe(): Promise<boolean> {
     const d = await r.json();
     backendAvailable = r.ok && d.ok;
   } catch { backendAvailable = false; }
-  return backendAvailable;
+  return backendAvailable ?? false;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T | null> {
   try {
+    const token = await getAuthToken();
     const r = await fetch(`${BASE}${path}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
     });
     if (!r.ok) return null;
@@ -73,11 +76,16 @@ export async function engineAnalyze(
     if (aiResult?.evaluation) {
       // Merge AI scores into the record (AI overrides where available)
       const e = aiResult.evaluation;
-      if (typeof e.relevance === 'number') record.scores.relevance = e.relevance as number;
-      if (typeof e.depth === 'number') record.scores.depth = e.depth as number;
-      if (typeof e.structure === 'number') record.scores.structure = e.structure as number;
-      if (typeof e.clarity === 'number') record.scores.clarity = e.clarity as number;
-      if (typeof e.roleFit === 'number') record.scores.roleFit = e.roleFit as number;
+      const relevance = boundedScore(e.relevance);
+      const depth = boundedScore(e.depth);
+      const structure = boundedScore(e.structure);
+      const clarity = boundedScore(e.clarity);
+      const roleFit = boundedScore(e.roleFit);
+      if (relevance !== null) record.scores.relevance = relevance;
+      if (depth !== null) record.scores.depth = depth;
+      if (structure !== null) record.scores.structure = structure;
+      if (clarity !== null) record.scores.clarity = clarity;
+      if (roleFit !== null) record.scores.roleFit = roleFit;
       if (Array.isArray(e.strengths)) record.feedback = e.strengths as string[];
       if (typeof e.overallHint === 'string') record.feedback.push(e.overallHint);
       return { record, followUp, source: 'ai-gemini' };
@@ -107,7 +115,16 @@ export async function fetchLiveInterviewFeedback(
     const r = await post<{ feedback: FinalFeedbackResponse }>('/api/ai/interview-feedback', {
       roleTitle, messages,
     });
-    if (r?.feedback) return r.feedback;
+    if (r?.feedback) {
+      return {
+        ...r.feedback,
+        overallScore: boundedScore(r.feedback.overallScore) ?? 0,
+        communication: boundedScore(r.feedback.communication) ?? 0,
+        technicalKnowledge: boundedScore(r.feedback.technicalKnowledge) ?? 0,
+        confidence: boundedScore(r.feedback.confidence) ?? 0,
+        problemSolving: boundedScore(r.feedback.problemSolving) ?? 0,
+      };
+    }
   }
   return generateLocalFeedback(roleTitle, messages);
 }

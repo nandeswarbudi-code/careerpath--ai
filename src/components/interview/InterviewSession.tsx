@@ -34,6 +34,7 @@ export default function InterviewSession({ role, format, useVideo, resumeSkills,
   const [typed, setTyped] = useState('');
   const [followUps, setFollowUps] = useState(0);
   const [reaction, setReaction] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number>(() => Date.now());
   /** Interviewer voice-over (browser TTS). Off by default; user opt-in. */
   const [voiceOver, setVoiceOver] = useState(false);
@@ -143,25 +144,29 @@ export default function InterviewSession({ role, format, useVideo, resumeSkills,
   const submit = async () => {
     if (busy) return;
     setBusy(true);
-    const durationSec = mode === 'voice' && speech.elapsedSec > 0 ? speech.elapsedSec : Math.round((Date.now() - startedAt) / 1000);
-    const answerMode: 'typed' | 'voice' | 'skipped' = currentAnswer.trim() === '' ? 'skipped' : mode;
-    const { record, followUp, source } = await engineAnalyze(
-      configRef.current, question, currentAnswer, answerMode, durationSec, followUps,
-    );
-    setEngineSource(source);
-    advance(record, followUp);
-    setBusy(false);
+    setAnalysisError(null);
+    try {
+      const durationSec = mode === 'voice' && speech.elapsedSec > 0 ? speech.elapsedSec : Math.round((Date.now() - startedAt) / 1000);
+      const answerMode: 'typed' | 'voice' | 'skipped' = currentAnswer.trim() === '' ? 'skipped' : mode;
+      const { record, followUp, source } = await engineAnalyze(configRef.current, question, currentAnswer, answerMode, durationSec, followUps);
+      setEngineSource(source);
+      advance(record, followUp);
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed. Please try again.');
+    } finally { setBusy(false); }
   };
 
   const skip = async () => {
     if (busy) return;
     setBusy(true);
-    const { record, followUp, source } = await engineAnalyze(
-      configRef.current, question, '', 'skipped', 0, followUps,
-    );
-    setEngineSource(source);
-    advance(record, followUp);
-    setBusy(false);
+    setAnalysisError(null);
+    try {
+      const { record, followUp, source } = await engineAnalyze(configRef.current, question, '', 'skipped', 0, followUps);
+      setEngineSource(source);
+      advance(record, followUp);
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed. Please try again.');
+    } finally { setBusy(false); }
   };
 
   const switchMode = (m: InputMode) => {
@@ -185,6 +190,7 @@ export default function InterviewSession({ role, format, useVideo, resumeSkills,
 
   return (
     <div>
+      {analysisError && <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{analysisError} <button className="ml-2 font-bold underline" onClick={() => setAnalysisError(null)}>Retry</button></div>}
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -253,8 +259,8 @@ export default function InterviewSession({ role, format, useVideo, resumeSkills,
             <div className="flex items-center gap-3">
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-2xl" aria-hidden="true">{question.interviewer.avatar}</span>
               <div>
-                <div className="font-bold text-slate-900">{question.interviewer.name}</div>
-                <div className="text-xs text-slate-400">{question.interviewer.title}</div>
+                <div className="font-bold text-slate-950">{question.interviewer.name}</div>
+                <div className="text-xs font-medium text-slate-600">{question.interviewer.title}</div>
               </div>
               <div className="ml-auto flex items-center gap-2">
                 {question.isFollowUp && (
@@ -275,7 +281,7 @@ export default function InterviewSession({ role, format, useVideo, resumeSkills,
                 )}
               </div>
             </div>
-            <p className="mt-4 whitespace-pre-line text-lg font-semibold leading-relaxed text-slate-800" aria-live="polite">
+            <p className="mt-4 whitespace-pre-line text-lg font-bold leading-relaxed text-slate-950" aria-live="polite">
               {question.text}
             </p>
             {question.expectsCode && (

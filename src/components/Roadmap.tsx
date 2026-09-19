@@ -27,13 +27,13 @@ export default function Roadmap({ role, levels, completedTasks, completedResourc
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [verifiedTasks, setVerifiedTasks] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('cp-verified') ?? '[]')); } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem(`cp-verified:${role.id}`) ?? '[]')); } catch { return new Set(); }
   });
   const [openedAt, setOpenedAt] = useState<Record<string, number>>({});
 
   const saveVerified = (s: Set<string>) => {
     setVerifiedTasks(s);
-    localStorage.setItem('cp-verified', JSON.stringify([...s]));
+    try { localStorage.setItem(`cp-verified:${role.id}`, JSON.stringify([...s])); } catch { /* verification is best effort */ }
   };
 
   const isFastTrack = (skillId: string) => {
@@ -63,7 +63,7 @@ export default function Roadmap({ role, levels, completedTasks, completedResourc
       const next = new Set(verifiedTasks);
       next.add(taskId);
       saveVerified(next);
-      toggleResource(taskId);
+      if (!completedResources.has(taskId)) toggleResource(taskId);
       setTimeout(() => setQuizOpen(null), 1500);
     }
   };
