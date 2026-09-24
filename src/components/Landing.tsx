@@ -4,14 +4,14 @@ const FEATURES = [
   { icon: '🎯', title: '44 Career Roles', desc: 'Engineering, Data, HR, Finance, Healthcare, Government & more', color: 'from-blue-500 to-cyan-500' },
   { icon: '🧠', title: 'AI Skill Assessment', desc: 'Find your gaps with per-skill analysis vs employer expectations', color: 'from-violet-500 to-purple-500' },
   { icon: '🗺️', title: 'Personalized Roadmap', desc: 'Curated resources, time estimates & progress tracking', color: 'from-emerald-500 to-teal-500' },
-  { icon: '🎤', title: 'Mock Interviews', desc: '6 formats + live video/voice practice with automated evaluation', color: 'from-orange-500 to-rose-500' },
+  { icon: '🎤', title: 'Live AI Interviews', desc: 'Adaptive live video and voice practice with automated evaluation', color: 'from-orange-500 to-rose-500' },
   { icon: '📄', title: 'Resume & ATS', desc: 'Builder with keyword matching analysis and export options', color: 'from-pink-500 to-fuchsia-500' },
   { icon: '💼', title: 'Job Search Links', desc: 'Intelligent search links to LinkedIn, Indeed, Naukri, Glassdoor & more', color: 'from-amber-500 to-yellow-500' },
 ];
 
 const STATS = [
   { value: '44+', label: 'Career Roles' },
-  { value: '6', label: 'Interview Formats' },
+  { value: '1', label: 'Live AI Flow' },
   { value: '100%', label: 'Free Forever' },
   { value: '∞', label: 'Practice Sessions' },
 ];

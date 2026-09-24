@@ -47,7 +47,7 @@ export function loadLocal(): LocalState | null {
       resume: {
         name: parsed.resume?.name ?? '', email: parsed.resume?.email ?? '', phone: parsed.resume?.phone ?? '',
         linkedin: parsed.resume?.linkedin ?? '', portfolio: parsed.resume?.portfolio ?? '',
-        experienceYears: parsed.resume?.experienceYears ?? '', format: parsed.resume?.format ?? 'chronological',
+        experienceYears: parsed.resume?.experienceYears ?? '', format: 'chronological',
         summary: parsed.resume?.summary ?? '', education: parsed.resume?.education ?? '',
         experience: parsed.resume?.experience ?? '', skills: parsed.resume?.skills ?? '', projects: parsed.resume?.projects ?? '',
       },

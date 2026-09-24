@@ -1,29 +1,41 @@
 /**
  * CareerPath AI — Engine API Layer
  *
- * Two engines:
- *   1. Node.js backend + Gemini → genuine AI semantic evaluation
- *   2. Local browser engine → rule-based scoring (fallback)
+ * The live interview uses two paths:
+ *   1. Node.js backend + Gemini → adaptive AI questions and feedback
+ *   2. Local browser generator → deterministic fallback questions and feedback
  *
  * The frontend tries the backend first. If unreachable, it falls
  * back to the local engine automatically and labels it honestly.
  */
-import {
-  analyzeAnswer, buildInitialQuestions, generateFollowUp,
-  type AnswerRecord, type EngineQuestion, type SessionConfig,
-} from './interviewEngine';
 import { generateLocalQuestion, generateLocalFeedback } from './localInterviewer';
 import { getAuthToken } from './firebase';
 import { boundedScore } from './scoreUtils';
 import type { LiveInterviewContext, NextQuestionResponse, FinalFeedbackResponse, LiveInterviewMessage } from '../types';
-
-export type EngineSource = 'local-rules' | 'ai-gemini';
 
 const BASE = (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) || 'http://localhost:3001';
 const PROBE_INTERVAL_MS = 30_000;
 
 let backendAvailable: boolean | null = null;
 let lastProbeAt = 0;
+
+export type CodingLanguage = 'javascript' | 'c' | 'cpp' | 'python' | 'java' | 'php' | 'ruby';
+
+export interface CodeExecutionResult {
+  compileOutput: string;
+  runOutput: string;
+  status: 'success' | 'compile-error' | 'runtime-error';
+}
+
+export async function executeCode(
+  language: CodingLanguage,
+  code: string,
+  stdin = '',
+): Promise<CodeExecutionResult> {
+  const result = await post<CodeExecutionResult>('/api/code/execute', { language, code, stdin });
+  if (!result) throw new Error('The online compiler is unavailable. Start the backend and try again.');
+  return result;
+}
 
 async function probe(): Promise<boolean> {
   const now = Date.now();
@@ -51,49 +63,6 @@ async function post<T>(path: string, body: unknown): Promise<T | null> {
 }
 
 // ─── Interview engine ───────────────────────────────────
-
-export interface StartResult { questions: EngineQuestion[]; source: EngineSource; }
-export interface AnalyzeResult { record: AnswerRecord; followUp: EngineQuestion | null; source: EngineSource; }
-
-export function engineStart(config: SessionConfig, count: number): StartResult {
-  return { questions: buildInitialQuestions(config, count), source: 'local-rules' };
-}
-
-export async function engineAnalyze(
-  config: SessionConfig, question: EngineQuestion, answerText: string,
-  mode: 'typed' | 'voice' | 'skipped', durationSec: number, followUpsSoFar: number,
-): Promise<AnalyzeResult> {
-  // Always compute local scores first
-  const record = analyzeAnswer(question, answerText, mode, durationSec, config);
-  const followUp = generateFollowUp(record, config, followUpsSoFar);
-
-  // Try Gemini for richer evaluation (non-blocking enhancement)
-  if (mode !== 'skipped' && answerText.trim().length > 10 && await probe()) {
-    const aiResult = await post<{ evaluation: Record<string, unknown> }>('/api/ai/evaluate', {
-      roleTitle: config.role.title, question: question.text,
-      answer: answerText, resumeSummary: config.resumeSkills.join(', '),
-    });
-    if (aiResult?.evaluation) {
-      // Merge AI scores into the record (AI overrides where available)
-      const e = aiResult.evaluation;
-      const relevance = boundedScore(e.relevance);
-      const depth = boundedScore(e.depth);
-      const structure = boundedScore(e.structure);
-      const clarity = boundedScore(e.clarity);
-      const roleFit = boundedScore(e.roleFit);
-      if (relevance !== null) record.scores.relevance = relevance;
-      if (depth !== null) record.scores.depth = depth;
-      if (structure !== null) record.scores.structure = structure;
-      if (clarity !== null) record.scores.clarity = clarity;
-      if (roleFit !== null) record.scores.roleFit = roleFit;
-      if (Array.isArray(e.strengths)) record.feedback = e.strengths as string[];
-      if (typeof e.overallHint === 'string') record.feedback.push(e.overallHint);
-      return { record, followUp, source: 'ai-gemini' };
-    }
-  }
-
-  return { record, followUp, source: 'local-rules' };
-}
 
 // ─── Live interview ─────────────────────────────────────
 
@@ -128,5 +97,3 @@ export async function fetchLiveInterviewFeedback(
   }
   return generateLocalFeedback(roleTitle, messages);
 }
-
-

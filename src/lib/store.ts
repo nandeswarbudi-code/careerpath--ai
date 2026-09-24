@@ -148,7 +148,7 @@ export const useAppStore = create<AppState>()(
         else s.completedCerts.add(id);
       }),
     resume: EMPTY_RESUME,
-    setResume: (resume) => set({ resume }),
+    setResume: (resume) => set({ resume: { ...resume, format: 'chronological' } }),
     interviewBest: null,
     setInterviewBest: (score) =>
       set((s) => {
@@ -202,7 +202,7 @@ export const useAppStore = create<AppState>()(
         s.completedResources = new Set(local.completedResources);
         s.completedProjects = new Set(local.completedProjects);
         s.completedCerts = new Set(local.completedCerts);
-        s.resume = local.resume;
+        s.resume = { ...local.resume, format: 'chronological' };
         s.interviewBest = local.interviewBest;
         s.maxReached = local.maxReached;
         s.step = local.step;
@@ -241,7 +241,7 @@ export const useAppStore = create<AppState>()(
           s.completedResources = new Set(p.completedResources ?? []);
           s.completedProjects = new Set(p.completedProjects ?? []);
           s.completedCerts = new Set(p.completedCerts ?? []);
-          s.resume = { ...EMPTY_RESUME, ...p.resume };
+          s.resume = { ...EMPTY_RESUME, ...p.resume, format: 'chronological' };
           s.interviewBest = p.interviewBest ?? null;
           s.maxReached = p.maxReached ?? 0;
           s.history = [...(p.history ?? [])].slice(0, 20);

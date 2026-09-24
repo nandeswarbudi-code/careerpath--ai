@@ -1,12 +1,7 @@
 import { useState } from 'react';
-import type { FormatId, InterviewRole } from '../../data/interviewRoles';
-import { FORMATS as ALL_FORMATS } from '../../data/interviewRoles';
-import type { AnswerRecord } from '../../lib/interviewEngine';
-import { summarize } from '../../lib/interviewEngine';
+import type { InterviewRole } from '../../data/interviewRoles';
 import type { InterviewHistoryEntry } from '../../lib/storage';
 import InterviewSetup from './InterviewSetup';
-import InterviewSession from './InterviewSession';
-import InterviewReport from './InterviewReport';
 import LiveInterviewSession from '../liveInterview/LiveInterviewSession';
 import LiveInterviewReport from '../liveInterview/LiveInterviewReport';
 import type { LiveInterviewMessage, FinalFeedbackResponse } from '../../types';
@@ -18,16 +13,14 @@ interface Props {
   resumeProjects: string;
   /** Past sessions, newest first (shown on the setup screen). */
   history?: InterviewHistoryEntry[];
-  /** Called when a classic report is generated — overall 0-100 plus session metadata. */
+  /** Called when a live report is generated — overall 0-100 plus session metadata. */
   onResult: (overall: number, roleTitle: string, formatName: string) => void;
   onExit: () => void;
 }
 
 type Phase =
   | { name: 'setup' }
-  | { name: 'session'; role: InterviewRole; format: FormatId; useVideo: boolean }
   | { name: 'live'; role: InterviewRole; mode: 'video' | 'voice' }
-  | { name: 'report'; role: InterviewRole; format: FormatId; records: AnswerRecord[] }
   | { name: 'live-report'; role: InterviewRole; mode: 'video' | 'voice'; messages: LiveInterviewMessage[]; feedback: FinalFeedbackResponse | null; videoMetrics: VideoBehaviorMetrics | null };
 
 export default function InterviewHub({ defaultRoleId, resumeSkills, resumeProjects, history, onResult, onExit }: Props) {
@@ -39,27 +32,8 @@ export default function InterviewHub({ defaultRoleId, resumeSkills, resumeProjec
         defaultRoleId={defaultRoleId}
         hasResume={resumeSkills.length > 0 || resumeProjects.trim().length > 0}
         history={history}
-        onStart={(role, format, useVideo) => setPhase({ name: 'session', role, format, useVideo })}
         onStartLive={(role, mode) => setPhase({ name: 'live', role, mode })}
         onBack={onExit}
-      />
-    );
-  }
-
-  if (phase.name === 'session') {
-    return (
-      <InterviewSession
-        role={phase.role}
-        format={phase.format}
-        useVideo={phase.useVideo}
-        resumeSkills={resumeSkills}
-        resumeProjects={resumeProjects}
-        onFinish={(records) => {
-          const formatName = ALL_FORMATS.find((f) => f.id === phase.format)?.name ?? phase.format;
-          onResult(summarize(records).overall, phase.role.title, formatName);
-          setPhase({ name: 'report', role: phase.role, format: phase.format, records });
-        }}
-        onAbort={() => setPhase({ name: 'setup' })}
       />
     );
   }
@@ -94,13 +68,5 @@ export default function InterviewHub({ defaultRoleId, resumeSkills, resumeProjec
     );
   }
 
-  return (
-    <InterviewReport
-      role={phase.role}
-      format={phase.format}
-      records={phase.records}
-      onRetry={() => setPhase({ name: 'setup' })}
-      onDone={onExit}
-    />
-  );
+  return null;
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Role } from '../types';
 import { runCodeInSandbox } from '../lib/codeRunner';
+import { executeCode, type CodingLanguage } from '../lib/api';
 
 type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
@@ -91,21 +92,66 @@ const DIFF_COLORS: Record<Difficulty, string> = {
 
 interface Props { role: Role | null; }
 
+const LANGUAGES: { id: CodingLanguage; label: string }[] = [
+  { id: 'javascript', label: 'JavaScript' },
+  { id: 'c', label: 'C' },
+  { id: 'cpp', label: 'C++' },
+  { id: 'python', label: 'Python' },
+  { id: 'java', label: 'Java' },
+  { id: 'php', label: 'PHP' },
+  { id: 'ruby', label: 'Ruby' },
+];
+
+function starterFor(problem: Problem, language: CodingLanguage): string {
+  if (language === 'javascript') return problem.starter;
+  const comment = language === 'python' ? '#' : language === 'ruby' || language === 'php' ? '#' : '//';
+  const body = `${comment} ${problem.description}\n${comment} Implement your solution below.\n`;
+  if (language === 'python') return `${body}\ndef solve():\n    pass\n\nif __name__ == '__main__':\n    solve()\n`;
+  if (language === 'ruby') return `${body}\ndef solve\n  # your code\nend\n\nsolve\n`;
+  if (language === 'php') return `<?php\n${body}\nfunction solve() {\n    // your code\n}\n\nsolve();\n`;
+  if (language === 'java') return `${body}\nimport java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // your code\n    }\n}\n`;
+  return `${body}\n#include <stdio.h>\n\nint main(void) {\n    // your code\n    return 0;\n}\n`;
+}
+
 export default function CodingPractice({ role }: Props) {
   const problems = generateProblems(role?.title ?? 'Software Developer');
   const [filter, setFilter] = useState<Difficulty | 'All'>('All');
   const [selected, setSelected] = useState<Problem>(problems[0]);
   const [code, setCode] = useState(selected.starter);
+  const [language, setLanguage] = useState<CodingLanguage>('javascript');
   const [output, setOutput] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(false);
 
   const filtered = filter === 'All' ? problems : problems.filter((p) => p.difficulty === filter);
   const counts = { Easy: problems.filter((p) => p.difficulty === 'Easy').length, Medium: problems.filter((p) => p.difficulty === 'Medium').length, Hard: problems.filter((p) => p.difficulty === 'Hard').length };
 
-  const pick = (p: Problem) => { setSelected(p); setCode(p.starter); setOutput([]); setShowHint(false); };
+  const pick = (p: Problem) => { setSelected(p); setCode(starterFor(p, language)); setOutput([]); setShowHint(false); };
+
+  const changeLanguage = (next: CodingLanguage) => {
+    setLanguage(next);
+    setCode(starterFor(selected, next));
+    setOutput([]);
+  };
 
   const run = async (): Promise<string[]> => {
     setOutput(['🔄 Running...']);
+    if (language !== 'javascript') {
+      setOutput(['🔄 Compiling and running online…']);
+      try {
+        const result = await executeCode(language, code);
+        const lines = [
+          result.status === 'success' ? '✅ Compilation and execution succeeded.' : `❌ ${result.status === 'compile-error' ? 'Compilation failed.' : 'Runtime error.'}`,
+          result.compileOutput,
+          result.runOutput,
+        ].filter(Boolean).flatMap((line) => line.split('\n'));
+        setOutput(lines);
+        return lines;
+      } catch (err) {
+        const lines = [`❌ Error: ${(err as Error).message}`];
+        setOutput(lines);
+        return lines;
+      }
+    }
     const test = selected.id.startsWith('e1') ? 'console.log(reverse("hello"))' :
       selected.id.startsWith('e2') ? 'console.log(findMax([3,7,2,9,1]))' :
       selected.id.startsWith('e4') ? 'console.log(isPalindrome("racecar"))' :
@@ -178,8 +224,9 @@ export default function CodingPractice({ role }: Props) {
 
           <div className="card overflow-hidden flex flex-col" style={{ background: '#1e1e2e' }}>
             <div className="flex items-center justify-between px-4 py-2 text-xs font-bold text-slate-400" style={{ borderBottom: '1px solid #2a2a3e' }}>
-              <span>editor.js</span>
-              <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-300">JavaScript</span>
+              <select value={language} onChange={(e) => changeLanguage(e.target.value as CodingLanguage)} className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-300 outline-none">
+                {LANGUAGES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
             </div>
             <textarea value={code} onChange={(e) => setCode(e.target.value)}
               className="flex-1 min-h-[200px] w-full bg-transparent p-4 text-sm text-green-300 outline-none resize-none font-mono leading-relaxed" />

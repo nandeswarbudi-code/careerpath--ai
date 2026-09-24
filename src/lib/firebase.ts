@@ -202,7 +202,7 @@ export async function loadProgress(uid: string): Promise<CloudProgress | null> {
       resume: {
         name: d.resume?.name ?? '', email: d.resume?.email ?? '', phone: d.resume?.phone ?? '',
         linkedin: d.resume?.linkedin ?? '', portfolio: d.resume?.portfolio ?? '',
-        experienceYears: d.resume?.experienceYears ?? '', format: d.resume?.format ?? 'chronological',
+        experienceYears: d.resume?.experienceYears ?? '', format: 'chronological',
         summary: d.resume?.summary ?? '', education: d.resume?.education ?? '',
         experience: d.resume?.experience ?? '', skills: d.resume?.skills ?? '', projects: d.resume?.projects ?? '',
       },

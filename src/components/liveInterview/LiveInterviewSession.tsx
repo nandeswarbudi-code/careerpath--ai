@@ -5,7 +5,7 @@ import { fetchLiveInterviewQuestion, fetchLiveInterviewFeedback } from '../../li
 import type { InterviewRole } from '../../data/interviewRoles';
 import type { FinalFeedbackResponse, LiveInterviewMessage, LiveInterviewPhase, VideoBehaviorMetrics } from '../../types';
 import { VideoBehaviorAnalyzer } from '../../lib/videoAnalysis';
-import AIAvatar from './AIAvatar';
+import { GabrielAvatar, VoiceAvatar } from './InterviewerAvatar';
 
 interface Props {
   role: InterviewRole;
@@ -33,7 +33,6 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
   const [started, setStarted] = useState(false);
   const [typedAnswer, setTypedAnswer] = useState('');
   const [answerMode, setAnswerMode] = useState<'voice' | 'type'>('voice');
-  const [avatarStyle, setAvatarStyle] = useState<'maya' | 'daniel' | 'nova'>('nova');
   const [cameraConsent, setCameraConsent] = useState(false);
   const [calibrated, setCalibrated] = useState(mode !== 'video');
   const [analysisEnabled, setAnalysisEnabled] = useState(mode === 'video');
@@ -111,7 +110,15 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
       setError(null);
       try {
         const summary = [resumeSkills.join(', '), resumeProjects].filter(Boolean).join(' | ');
-        const next = await fetchLiveInterviewQuestion({ roleTitle: role.title, format: mode, resumeSummary: summary || undefined, messages: prevMessages, phase: nextPhase });
+        const next = await fetchLiveInterviewQuestion({
+          roleTitle: role.title,
+          roleKeywords: role.keywords,
+          roleTopics: role.topics,
+          format: mode,
+          resumeSummary: summary || undefined,
+          messages: prevMessages,
+          phase: nextPhase,
+        });
         const fullText = [next.transitionalPhrase, next.text].filter(Boolean).join(' ');
         const interviewerMsg: LiveInterviewMessage = { role: 'interviewer', text: fullText };
         const updated = [...prevMessages, interviewerMsg];
@@ -230,7 +237,7 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
     if (mode === 'video' && !cameraConsent) {
       return (
         <div className="mx-auto max-w-lg text-center page-enter">
-          <AIAvatar isListening={false} isSpeaking={false} style={avatarStyle} />
+          <GabrielAvatar variant="gabriel" isListening={false} isSpeaking={false} size="lg" />
           <h2 className="mt-6 text-2xl font-extrabold font-display text-slate-100">Before your video interview</h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-400">Your camera is used only on this device for the self-view and optional behavior signals. No video is recorded, uploaded, or used to analyze identity, age, race, attractiveness, or emotion.</p>
           <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200">🔒 Free forever · Your mic audio and camera never leave this device — only text answers are sent for AI analysis.</p>
@@ -238,18 +245,6 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
             <input type="checkbox" checked={cameraConsent} onChange={(e) => setCameraConsent(e.target.checked)} className="mt-1" />
             <span>I consent to local camera use for this interview.</span>
           </label>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {([
-              ['maya', 'Maya Chen', 'Behavioral'],
-              ['daniel', 'Daniel Brooks', 'Technical'],
-              ['nova', 'Nova AI', 'Systems'],
-            ] as const).map(([id, name, specialty]) => (
-              <button key={id} onClick={() => setAvatarStyle(id)} className={`rounded-xl px-2 py-2 text-xs font-bold transition ${avatarStyle === id ? 'bg-blue-500 text-white' : 'bg-white/10 text-slate-300 hover:bg-white/15'}`}>
-                <span className="block">{name}</span>
-                <span className="mt-0.5 block text-[10px] font-medium opacity-70">{specialty}</span>
-              </button>
-            ))}
-          </div>
           <button onClick={handleStart} disabled={!cameraConsent} className="btn-primary mt-8 !px-10 !py-4 text-base disabled:cursor-not-allowed disabled:opacity-40">Continue to camera setup</button>
           <button onClick={onAbort} className="mt-3 block mx-auto text-sm font-semibold text-slate-500 hover:text-slate-300 transition">← Go back</button>
         </div>
@@ -268,7 +263,11 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
     }
     return (
       <div className="mx-auto max-w-lg text-center page-enter">
-        <AIAvatar isListening={false} isSpeaking={false} style={avatarStyle} />
+        {mode === 'video' ? (
+          <GabrielAvatar variant="gabriel" isListening={false} isSpeaking={false} size="lg" />
+        ) : (
+          <VoiceAvatar />
+        )}
         <h2 className="mt-6 text-2xl font-extrabold font-display text-slate-100">
           {mode === 'video' ? '🎥' : '🎙️'} {role.title} Interview
         </h2>
@@ -330,7 +329,7 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
         <div className="space-y-4">
           {mode === 'video' ? (
             <div className="space-y-4">
-              <AIAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} style={avatarStyle} />
+              <GabrielAvatar variant="gabriel" isListening={speech.listening} isSpeaking={avatarSpeaking} size="lg" />
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
                 <video ref={attachVideo} autoPlay muted playsInline className="aspect-video w-full object-cover" />
                 <p className="bg-slate-950 px-3 py-2 text-[11px] text-slate-500">You — local only, not recorded.</p>
@@ -343,7 +342,7 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
             </div>
           ) : (
             <div className="premium-card rounded-3xl p-8 text-center">
-              <AIAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} style={avatarStyle} />
+              <VoiceAvatar isListening={speech.listening} isSpeaking={avatarSpeaking} />
               <p className="mt-4 text-sm text-slate-500">Voice-only mode. Speak or type your answers.</p>
             </div>
           )}
@@ -386,6 +385,12 @@ export default function LiveInterviewSession({ role, mode, resumeSkills, resumeP
 
         {/* Right column: Transcript + Answer input */}
         <div className="flex flex-col glass rounded-3xl p-5">
+          <div className="mb-4 rounded-2xl border border-blue-400/25 bg-blue-500/10 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-300">Current question</p>
+            <p className="mt-2 text-base font-semibold leading-relaxed text-white">
+              {[...messages].reverse().find((message) => message.role === 'interviewer')?.text ?? 'Your role-specific question will appear here.'}
+            </p>
+          </div>
           {/* Transcript */}
           {showTranscript && (
             <div className="mb-4 max-h-72 flex-1 space-y-3 overflow-y-auto rounded-2xl bg-black/20 p-4">

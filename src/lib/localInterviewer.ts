@@ -17,6 +17,7 @@ import type {
   FinalFeedbackResponse,
   LiveInterviewMessage,
 } from '../types';
+import { INTERVIEW_ROLES } from '../data/interviewRoles';
 
 // ─── Natural reaction phrases (never repeat consecutively) ───
 
@@ -85,10 +86,15 @@ interface PhaseQuestions {
 }
 
 function getQuestions(roleTitle: string): Record<LiveInterviewPhase, PhaseQuestions> {
+  const role = INTERVIEW_ROLES.find((candidate) => candidate.title === roleTitle);
+  const topics = role?.topics ?? ['your professional responsibilities'];
+  const keywords = role?.keywords ?? ['your core skills'];
+  const topic = topics[0];
+  const skill = keywords[0];
   return {
     welcome: {
       primary: [
-        `Hi there! I'm Alex, a Senior Engineering Manager here. I'll be conducting your interview for the ${roleTitle} position today. Before we begin, I want you to know — there are no trick questions here. Just be yourself and share your genuine experiences. So... tell me a bit about yourself. What's your background, and what drew you to this ${roleTitle} role?`,
+        `Hi there! I'll be conducting your interview for the ${roleTitle} position today. Tell me about your background and what drew you to this role. Which experience best prepared you for ${topic}?`,
       ],
       followUp: [
         `Thanks for that introduction. What would you say is the one thing you're most passionate about in your career right now?`,
@@ -109,10 +115,10 @@ function getQuestions(roleTitle: string): Record<LiveInterviewPhase, PhaseQuesti
     },
     technical: {
       primary: [
-        `As a ${roleTitle}, what do you consider the most critical technical skills, and how have you built expertise in those areas?`,
-        `Can you explain a complex technical concept from your domain as if you were explaining it to a non-technical colleague? I want to see how you communicate complexity.`,
-        `What's the most technically challenging problem you've solved? Walk me through your approach step by step.`,
-        `Tell me about a time you had to make a significant technical trade-off. What were the options, and why did you choose the path you did?`,
+        `As a ${roleTitle}, how have you used ${skill} in a real project? Explain the context, your approach, and the result.`,
+        `Explain how you would handle ${topic} as a ${roleTitle}, including the trade-offs you would consider.`,
+        `What is the most challenging ${topic} problem you have solved? Walk me through your approach step by step.`,
+        `Which skills are most important for a ${roleTitle} to succeed, especially ${keywords.slice(0, 3).join(', ')}? How have you built them?`,
       ],
       followUp: [
         "Why did you choose that specific approach over the alternatives?",
@@ -122,9 +128,9 @@ function getQuestions(roleTitle: string): Record<LiveInterviewPhase, PhaseQuesti
     },
     project: {
       primary: [
-        "Tell me about the project you're most proud of. What was the problem, your approach, and the impact?",
-        "Walk me through a project where things didn't go as planned. What went wrong, and how did you recover?",
-        "Describe a project where you wore multiple hats. How did you prioritize, and what trade-offs did you make?",
+        `Tell me about a project where you applied ${skill} or worked on ${topic}. What was the problem, your approach, and the impact?`,
+        `Walk me through a ${roleTitle} project where things did not go as planned. What went wrong, and how did you recover?`,
+        `Describe a project that required strong ${keywords.slice(0, 2).join(' and ')}. How did you prioritize and measure success?`,
       ],
       followUp: [
         "What would you do differently if you could start that project over from scratch?",
@@ -134,9 +140,9 @@ function getQuestions(roleTitle: string): Record<LiveInterviewPhase, PhaseQuesti
     },
     scenario: {
       primary: [
-        `Imagine you join our team as a ${roleTitle}, and on your first week, a critical production issue is discovered in a system you've never seen before. Walk me through your first 24 hours.`,
-        "You're given a project with an aggressive deadline, but halfway through, the requirements change significantly. How do you handle it?",
-        "A senior stakeholder is pushing for a solution you believe is technically flawed. How do you handle the conversation?",
+        `Imagine you join our team as a ${roleTitle}, and you are asked to improve ${topic} in your first week. Walk me through your first 24 hours.`,
+        `You are given a ${roleTitle} project with an aggressive deadline, but the requirements for ${topic} change significantly. How do you handle it?`,
+        `A senior stakeholder challenges your recommendation about ${topic}. How do you explain the risks and handle the conversation?`,
       ],
       followUp: [
         "What if the stakeholder outranks you and insists? Then what?",
@@ -146,9 +152,9 @@ function getQuestions(roleTitle: string): Record<LiveInterviewPhase, PhaseQuesti
     },
     problem: {
       primary: [
-        `If a system you maintain suddenly starts running 10x slower than expected, what's your systematic debugging approach? Think aloud for me.`,
-        "How would you design a system to handle 10,000 concurrent users with minimal latency? What are the key architectural decisions?",
-        "You have two equally valid technical solutions. One is faster to implement but harder to maintain. The other is the opposite. How do you decide?",
+        `A key ${topic} outcome is underperforming. As a ${roleTitle}, what data would you inspect first and how would you diagnose the cause?`,
+        `How would you improve ${topic} for a team or organization? What constraints and success metrics would you consider?`,
+        `You have two valid approaches to ${topic}. One is faster but harder to maintain. How do you decide?`,
       ],
       followUp: [
         "Before jumping to solutions — what assumptions are you making? Let's examine those.",

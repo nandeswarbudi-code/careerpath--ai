@@ -81,7 +81,7 @@ export interface ResumeData {
   linkedin: string;
   portfolio: string;
   experienceYears: string;
-  format: 'chronological' | 'combination' | 'functional';
+  format: 'chronological';
   summary: string;
   education: string;
   experience: string;
@@ -110,6 +110,8 @@ export interface LiveInterviewMessage {
 export interface LiveInterviewContext {
   roleTitle: string;
   format: 'video' | 'voice';
+  roleKeywords?: string[];
+  roleTopics?: string[];
   resumeSummary?: string;
   messages: LiveInterviewMessage[];
   phase: LiveInterviewPhase;

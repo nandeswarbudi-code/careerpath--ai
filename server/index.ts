@@ -142,6 +142,51 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, engine: 'node', gemini: geminiOk });
 });
 
+const COMPILER_LANGUAGES = new Set(['c', 'cpp', 'python', 'java', 'php', 'ruby']);
+const JUDGE0_LANGUAGE_IDS: Record<string, number> = {
+  c: 50,
+  cpp: 54,
+  python: 71,
+  java: 62,
+  php: 68,
+  ruby: 72,
+};
+
+app.post('/api/code/execute', requireAiRateLimit, async (req, res) => {
+  const language = typeof req.body.language === 'string' ? req.body.language : '';
+  const code = typeof req.body.code === 'string' ? req.body.code : '';
+  const stdin = typeof req.body.stdin === 'string' ? req.body.stdin : '';
+  if (!COMPILER_LANGUAGES.has(language)) return res.status(400).json({ error: 'Unsupported compiled language' });
+  if (!code.trim()) return res.status(400).json({ error: 'Code is required' });
+  if (code.length > 30_000 || stdin.length > 10_000) return res.status(413).json({ error: 'Code or input is too large' });
+
+  try {
+    const response = await fetch('https://ce.judge0.com/submissions?base64_encoded=false&wait=true', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language_id: JUDGE0_LANGUAGE_IDS[language], source_code: code, stdin }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) return res.status(502).json({ error: 'Online compiler rejected the request' });
+    const result = await response.json() as {
+      compile_output?: string | null;
+      stdout?: string | null;
+      stderr?: string | null;
+      message?: string | null;
+      status?: { id?: number; description?: string };
+    };
+    const compileOutput = result.compile_output ?? '';
+    const runOutput = [result.stdout ?? '', result.stderr ?? '', result.message ?? '']
+      .filter(Boolean).join('\n');
+    const statusId = result.status?.id ?? 0;
+    const status = compileOutput ? 'compile-error'
+      : statusId === 3 ? 'success' : 'runtime-error';
+    res.json({ compileOutput, runOutput, status });
+  } catch {
+    res.status(502).json({ error: 'Online compiler is unavailable or timed out' });
+  }
+});
+
 // AI interview evaluation — semantic LLM analysis
 app.post('/api/ai/evaluate', requireAiAuth, requireAiRateLimit, async (req, res) => {
   if (!geminiOk) return res.status(503).json({ error: 'Gemini not configured' });
@@ -182,6 +227,12 @@ Be honest. Reference specific parts of the answer.`;
 app.post('/api/ai/interview-next', requireAiAuth, requireAiRateLimit, async (req, res) => {
   if (!geminiOk) return res.status(503).json({ error: 'Gemini not configured' });
   const roleTitle = boundedText(req.body.roleTitle, 120);
+  const roleKeywords = Array.isArray(req.body.roleKeywords)
+    ? req.body.roleKeywords.slice(0, 12).map((value: unknown) => boundedText(value, 60)).join(', ')
+    : '';
+  const roleTopics = Array.isArray(req.body.roleTopics)
+    ? req.body.roleTopics.slice(0, 8).map((value: unknown) => boundedText(value, 80)).join(', ')
+    : '';
   const phase = boundedText(req.body.phase, 40);
   const resumeSummary = boundedText(req.body.resumeSummary, 3000);
   const messages = Array.isArray(req.body.messages) ? req.body.messages.slice(-30).map((message: { role?: unknown; text?: unknown }) => ({
@@ -194,9 +245,11 @@ app.post('/api/ai/interview-next', requireAiAuth, requireAiRateLimit, async (req
   ).join('\n');
 
   const prompt = `You are a senior ${roleTitle} interviewer. Current phase: ${phase}.
+Role-specific skills: ${roleKeywords || 'the role requirements'}.
+Role-specific topics: ${roleTopics || 'the role responsibilities'}.
 ${resumeSummary ? `Candidate: ${resumeSummary}` : ''}
 
-Rules: Ask ONE question. React naturally to the previous answer. Sound human, not scripted.
+Rules: Ask ONE question that is specific to the role skills or topics above. React naturally to the previous answer. Sound human, not scripted. Avoid generic software-engineering questions unless this is a software role.
 
 Conversation:
 ${history || '(Start the interview)'}

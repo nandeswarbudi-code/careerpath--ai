@@ -242,7 +242,14 @@ export default function App() {
           )}
 
           {view === 'ats' && (
-            <AtsChecker role={role} resume={resume} />
+            <AtsChecker
+              role={role}
+              resume={resume}
+              onOpenResume={() => {
+                setView('journey');
+                setStep(role ? 'resume' : 'role');
+              }}
+            />
           )}
 
           {view === 'coding' && (

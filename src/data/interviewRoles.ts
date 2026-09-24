@@ -72,23 +72,3 @@ export const INTERVIEW_ROLES: InterviewRole[] = [
 ];
 
 export const INDUSTRIES: string[] = [...new Set(INTERVIEW_ROLES.map((r) => r.industry))];
-
-export type FormatId = 'behavioural' | 'panel' | 'gd' | 'stress' | 'upsc' | 'coding';
-
-export interface InterviewFormat {
-  id: FormatId;
-  name: string;
-  icon: string;
-  description: string;
-  technicalOnly: boolean;
-  questionCount: number;
-}
-
-export const FORMATS: InterviewFormat[] = [
-  { id: 'behavioural', name: 'Behavioural (HR Round)', icon: '💬', description: 'STAR-based questions on experience, teamwork, and motivation.', technicalOnly: false, questionCount: 5 },
-  { id: 'panel', name: 'Panel Interview', icon: '👥', description: 'Three interviewers — domain expert, HR manager, and senior director — take turns.', technicalOnly: false, questionCount: 6 },
-  { id: 'gd', name: 'Group Discussion', icon: '🗣️', description: 'Simulated peers argue a topic; you contribute across rounds and are scored on substance.', technicalOnly: false, questionCount: 4 },
-  { id: 'stress', name: 'Stress Interview', icon: '🔥', description: 'Deliberately challenging pushback to test composure under pressure.', technicalOnly: false, questionCount: 5 },
-  { id: 'upsc', name: 'UPSC Personality Test', icon: '🏛️', description: 'Board-style personality assessment: background, opinions, ethics, and current affairs.', technicalOnly: false, questionCount: 6 },
-  { id: 'coding', name: 'Coding / Technical Round', icon: '💻', description: 'Algorithmic and system problems — explain your approach and write pseudo-code.', technicalOnly: true, questionCount: 4 },
-];

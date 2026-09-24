@@ -22,10 +22,22 @@ const FIELDS: { key: keyof ResumeData; label: string; placeholder: string; texta
   { key: 'projects', label: 'Key Projects', placeholder: 'Task Manager SPA — React + TypeScript\n• Full CRUD with drag-and-drop\n• 95 Lighthouse performance score', textarea: true },
 ];
 
-/** Counts fields with meaningful content (>3 chars, not just spaces) */
+const STANDARD_RESUME_LAYOUT = {
+  preview: [
+    { key: 'summary', title: 'Summary', empty: 'Write a professional summary above…' },
+    { key: 'skills', title: 'Skills', empty: 'Add your key skills above…' },
+    { key: 'experience', title: 'Experience', empty: 'Add your experience above…' },
+    { key: 'projects', title: 'Projects', empty: 'Add your projects above…' },
+    { key: 'education', title: 'Education', empty: 'Add your education above…' },
+  ],
+  downloadSections: ['summary', 'skills', 'experience', 'projects', 'education'],
+} as const;
+
+/** Counts user-entered fields with meaningful content (>3 chars, not just spaces). */
 export function resumeCompleteness(r: ResumeData): number {
-  const filled = Object.values(r).filter((v) => v.trim().length > 3).length;
-  return Math.round((filled / Object.keys(r).length) * 100);
+  const relevantFields = Object.entries(r).filter(([key]) => key !== 'format');
+  const filled = relevantFields.filter(([, value]) => String(value).trim().length > 3).length;
+  return Math.round((filled / relevantFields.length) * 100);
 }
 
 function escapeHtml(value: string): string {
@@ -78,6 +90,10 @@ function polishResume(resume: ResumeData, role: Role): ResumeData {
   };
 }
 
+function getResumeFormatLayout(_format: ResumeData['format']) {
+  return STANDARD_RESUME_LAYOUT;
+}
+
 function downloadResume(r: ResumeData, roleTitle: string): void {
   const contact = [
     r.email ? contactLink(r.email, 'email') : '',
@@ -85,24 +101,32 @@ function downloadResume(r: ResumeData, roleTitle: string): void {
     r.linkedin ? contactLink(r.linkedin, 'url') : '',
     r.portfolio ? contactLink(r.portfolio, 'url') : '',
   ].filter(Boolean).join(' | ');
-  const formatLabel = r.format === 'combination' ? 'Combination' : r.format === 'functional' ? 'Functional' : 'Reverse-Chronological';
-  const experienceHeading = r.format === 'functional' ? 'Selected Achievements' : 'Professional Experience';
-  const experienceSection = resumeSection(experienceHeading, r.experience);
-  const skillsSection = resumeSection('Core Skills', r.skills);
-  const sections = r.format === 'functional'
-    ? `${skillsSection}${experienceSection}${resumeSection('Education', r.education)}`
-    : r.format === 'combination'
-      ? `${skillsSection}${resumeSection('Selected Achievements', r.projects)}${experienceSection}${resumeSection('Education', r.education)}`
-      : `${resumeSection('Professional Summary', r.summary)}${skillsSection}${experienceSection}${resumeSection('Selected Projects', r.projects)}${resumeSection('Education', r.education)}`;
+  const layout = getResumeFormatLayout('chronological');
+
+  const sectionTitles: Record<string, string> = {
+    summary: 'Professional Summary',
+    skills: 'Core Skills',
+    experience: 'Professional Experience',
+    projects: 'Selected Projects',
+    education: 'Education',
+  };
+
+  const downloadHtml = (value: string, title: string) => resumeSection(title, value);
+  const sections = layout.downloadSections.map((key) => {
+    const label = sectionTitles[key];
+    const value = key === 'summary' ? r.summary : key === 'skills' ? r.skills : key === 'experience' ? r.experience : key === 'projects' ? r.projects : r.education;
+    return downloadHtml(value, label);
+  }).join('');
+
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(r.name || 'Resume')} - ${escapeHtml(roleTitle)}</title>
 <style>
   @page { size: A4; margin: 16mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #263238; font: 10.5pt Arial, Helvetica, sans-serif; line-height: 1.42; }
+  body { margin: 0; color: #082837; font: 10.5pt Arial, Helvetica, sans-serif; line-height: 1.42; }
   main { max-width: 820px; margin: 0 auto; border: 1px solid #d7dfdf; }
-  header { background: #174b4c; color: white; padding: 30px 34px 25px; border-top: 12px solid #0e3539; }
+  header { background: #083131; color: white; padding: 30px 34px 25px; border-top: 12px solid #0e3539; }
   h1 { color: white; font-size: 27pt; letter-spacing: .5px; margin: 0 0 4px; text-transform: uppercase; }
   .role { color: #cde4df; font-size: 11pt; font-weight: bold; letter-spacing: 1.1px; margin-bottom: 15px; text-transform: uppercase; }
   .contact { color: #f1f8f6; font-size: 9.5pt; }
@@ -124,7 +148,7 @@ ${sections}
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${(r.name || 'resume').trim().replace(/[^a-z0-9]+/gi, '-')}-${formatLabel}-Resume.html`;
+  a.download = `${(r.name || 'resume').trim().replace(/[^a-z0-9]+/gi, '-')}-Resume.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -173,15 +197,7 @@ export default function ResumeBuilder({ role, resume, setResume, onNext }: Props
             <div className="mt-2 progress-track">
               <div className="progress-fill" style={{ width: `${pct}%` }} />
             </div>
-            <label className="mt-4 block">
-              <span className="mb-1 block text-sm font-semibold" style={{ color: 'var(--text)' }}>Resume format</span>
-              <select value={resume.format} onChange={(e) => setResume({ ...resume, format: e.target.value as ResumeData['format'] })} className="input w-full">
-                <option value="chronological">Reverse-chronological (recommended)</option>
-                <option value="combination">Combination (skills + timeline)</option>
-                <option value="functional">Functional (skills-first, use sparingly)</option>
-              </select>
-              <span className="mt-1 block text-xs" style={{ color: 'var(--muted)' }}>Use reverse-chronological unless you have a strong reason to highlight transferable skills first.</span>
-            </label>
+            <input type="hidden" name="resume-format" value="chronological" />
             <button
               type="button"
               onClick={() => { setResume(polishResume(resume, role)); setPolished(true); }}
@@ -234,28 +250,53 @@ export default function ResumeBuilder({ role, resume, setResume, onNext }: Props
 
         {/* Live Preview */}
         <div className="lg:sticky lg:top-6 lg:self-start" id="resume-preview">
-          <div className="card overflow-hidden shadow-lg print:shadow-none">
-            <div className="px-8 py-6 text-white" style={{ background: 'var(--primary)' }}>
-              <h2 className="text-2xl font-extrabold">{resume.name || 'Your Name'}</h2>
-              <p className="mt-1 text-sm opacity-80">
+          <div className="card overflow-hidden shadow-lg print:shadow-none" style={{ borderColor: 'var(--border)', background: '#f9fafb' }}>
+            <div
+              className="px-8 py-6 text-white"
+              style={{
+                background: 'linear-gradient(135deg, #174b4c 0%, #0d2d30 100%)',
+                boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.12)',
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-2xl font-extrabold tracking-tight">{resume.name || 'Your Name'}</h2>
+              </div>
+              <p className="mt-2 text-sm opacity-80">
                 {[resume.email, resume.phone, resume.linkedin, resume.portfolio].filter(Boolean).join('  ·  ') || 'email · phone · LinkedIn · portfolio'}
               </p>
-              <span className="mt-2 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
-                {role.title}{resume.experienceYears.trim() ? ` · ${resume.experienceYears} years` : ''}
-              </span>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-bold">
+                  {role.title}{resume.experienceYears.trim() ? ` · ${resume.experienceYears} years` : ''}
+                </span>
+              </div>
             </div>
             <div className="space-y-4 px-8 py-6">
-              <PreviewSection title="Summary" body={resume.summary} empty="Write a professional summary above…" />
-              <PreviewSection title="Skills">
-                <div className="flex flex-wrap gap-1.5">
-                  {(resume.skills || 'Your skills').split(',').map((s, i) => (
-                    <span key={i} className="badge badge-blue">{s.trim()}</span>
-                  ))}
-                </div>
-              </PreviewSection>
-              <PreviewSection title="Experience" body={resume.experience} empty="Add your experience above…" />
-              <PreviewSection title="Projects" body={resume.projects} empty="Add your projects above…" />
-              <PreviewSection title="Education" body={resume.education} empty="Add your education above…" />
+              {STANDARD_RESUME_LAYOUT.preview.map((section) => {
+                const body =
+                  section.key === 'summary' ? resume.summary :
+                  section.key === 'skills' ? resume.skills :
+                  section.key === 'experience' ? resume.experience :
+                  section.key === 'projects' ? resume.projects :
+                  resume.education;
+
+                if (section.key === 'skills') {
+                  return (
+                    <PreviewSection key={section.key} title={section.title} empty={section.empty}>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(body || 'Your skills').split(',').map((s, i) => (
+                          <span key={i} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-900" style={{ borderColor: '#dbeafe' }}>
+                            {s.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </PreviewSection>
+                  );
+                }
+
+                return (
+                  <PreviewSection key={section.key} title={section.title} body={body} empty={section.empty} />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -264,7 +305,7 @@ export default function ResumeBuilder({ role, resume, setResume, onNext }: Props
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
           <button onClick={() => downloadResume(resume, role.title)} className="btn btn-ghost text-sm">
-            ⬇️ Download formatted resume
+            ⬇️ Download resume
           </button>
           <button onClick={() => window.print()} className="btn btn-ghost text-sm">
             🖨️ Print / PDF
@@ -280,8 +321,8 @@ export default function ResumeBuilder({ role, resume, setResume, onNext }: Props
 
 function PreviewSection({ title, body, empty, children }: { title: string; body?: string; empty?: string; children?: React.ReactNode }) {
   return (
-    <div>
-      <h3 className="mb-1.5 pb-1 text-xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>{title}</h3>
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" style={{ borderColor: 'var(--border)' }}>
+      <h3 className="mb-2 pb-1 text-[10px] font-extrabold uppercase tracking-[0.18em]" style={{ color: 'var(--muted)' }}>{title}</h3>
       {children ?? (
         <p className="whitespace-pre-line text-sm leading-relaxed" style={{ color: body?.trim() ? 'var(--text)' : 'var(--muted)' }}>
           {body?.trim() || empty || '—'}
