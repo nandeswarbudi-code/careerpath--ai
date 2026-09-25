@@ -35,7 +35,7 @@ export async function executeCode(
   code: string,
   stdin = '',
 ): Promise<CodeExecutionResult> {
-  const result = await post<CodeExecutionResult>('/api/code/execute', { language, code, stdin });
+  const result = await post<CodeExecutionResult>('/api/code/execute', { language, code, stdin }, true);
   if (!result) throw new Error('The online compiler is unavailable. Start the backend and try again.');
   return result;
 }
@@ -53,16 +53,27 @@ async function probe(): Promise<boolean> {
   return backendAvailable ?? false;
 }
 
-async function post<T>(path: string, body: unknown): Promise<T | null> {
+async function post<T>(path: string, body: unknown, throwOnError = false): Promise<T | null> {
   try {
     const token = await getAuthToken();
     const r = await fetch(`${BASE}${path}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
     });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      if (throwOnError) {
+        const details = await r.json().catch(() => null) as { error?: unknown } | null;
+        const message = typeof details?.error === 'string' ? details.error : `Compiler request failed (${r.status}).`;
+        throw new Error(message);
+      }
+      return null;
+    }
     return await r.json();
-  } catch { backendAvailable = false; return null; }
+  } catch (error) {
+    backendAvailable = false;
+    if (throwOnError) throw error;
+    return null;
+  }
 }
 
 // ─── Interview engine ───────────────────────────────────

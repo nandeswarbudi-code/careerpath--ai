@@ -5,10 +5,13 @@
  */
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { enableMapSet } from 'immer';
 import type { ResumeData, Role, StepId } from '../types';
 import { ROLE_CATALOG } from '../data/roleFactory';
 import { loadProgress, saveProgress, type CloudProgress, type InterviewHistoryEntry } from './firebase';
 import { loadLocal } from './storage';
+
+enableMapSet();
 
 export interface AppState {
   // Theme

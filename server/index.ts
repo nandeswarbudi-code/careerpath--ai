@@ -589,7 +589,6 @@ const JUDGE0_LANGUAGE_IDS: Record<
 
 app.post(
   '/api/code/execute',
-  requireAiAuth,
   requireAiRateLimit,
   async (req, res) => {
 
