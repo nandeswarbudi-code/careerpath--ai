@@ -155,7 +155,7 @@ const JUDGE0_LANGUAGE_IDS: Record<string, number> = {
   ruby: 72,
 };
 
-app.post('/api/code/execute', requireAiRateLimit, async (req, res) => {
+app.post('/api/code/execute', requireAiAuth, requireAiRateLimit, async (req, res) => {
   const language = typeof req.body.language === 'string' ? req.body.language : '';
   const code = typeof req.body.code === 'string' ? req.body.code : '';
   const stdin = typeof req.body.stdin === 'string' ? req.body.stdin : '';

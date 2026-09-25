@@ -118,8 +118,16 @@ service cloud.firestore {
 # 4. Framework: Vite
 # 5. Build command: npm run build
 # 6. Output directory: dist
-# 7. Add environment variable:
-#      VITE_API_URL = https://your-backend-url.onrender.com
+# 7. Add environment variables:
+#      VITE_API_URL = https://careerpath-ai-n4ak.onrender.com
+#      VITE_FIREBASE_API_KEY = value from Firebase console
+#      VITE_FIREBASE_AUTH_DOMAIN = your-project.firebaseapp.com
+#      VITE_FIREBASE_DATABASE_URL = your Realtime Database URL
+#      VITE_FIREBASE_PROJECT_ID = your Firebase project ID
+#      VITE_FIREBASE_STORAGE_BUCKET = your storage bucket
+#      VITE_FIREBASE_MESSAGING_SENDER_ID = your sender ID
+#      VITE_FIREBASE_APP_ID = your web app ID
+#      VITE_FIREBASE_MEASUREMENT_ID = optional Analytics ID
 # 8. Deploy
 ```
 
@@ -132,7 +140,10 @@ service cloud.firestore {
 #      Build command: npm install
 #      Start command: npx tsx server/index.ts
 #      Environment variables:
-#        GEMINI_API_KEY = AQ.your-key
+#        GEMINI_API_KEY = your-key
+#        FIREBASE_PROJECT_ID = your-project-id
+#        FIREBASE_CLIENT_EMAIL = firebase-adminsdk-...@your-project.iam.gserviceaccount.com
+#        FIREBASE_PRIVATE_KEY = service-account private key with \n escaped
 # 4. Deploy
 ```
 
@@ -142,6 +153,11 @@ You can deploy the frontend as a **Static Site** on Render:
 - Build command: `npm run build`
 - Publish directory: `dist`
 - Add env: `VITE_API_URL = https://your-backend.onrender.com`
+
+Firebase web variables belong in Vercel; Firebase Admin variables belong only
+on Render. After changing any `VITE_*` variable in Vercel, redeploy because
+Vite embeds those values at build time. Add `careerpath-ai-blue.vercel.app` to
+Firebase Authentication -> Settings -> Authorized domains.
 
 ---
 

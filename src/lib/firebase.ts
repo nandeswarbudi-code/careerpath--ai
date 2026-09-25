@@ -50,7 +50,7 @@ let analytics: Analytics | null = null;
 if (!isLocalHost) {
   void isSupported()
     .then((ok) => {
-      if (ok) analytics = getAnalytics(app);
+      if (ok && app) analytics = getAnalytics(app);
     })
     .catch(() => {
       /* analytics unavailable — non-fatal */

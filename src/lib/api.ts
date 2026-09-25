@@ -13,7 +13,10 @@ import { getAuthToken } from './firebase';
 import { boundedScore } from './scoreUtils';
 import type { LiveInterviewContext, NextQuestionResponse, FinalFeedbackResponse, LiveInterviewMessage } from '../types';
 
-const BASE = (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) || 'http://localhost:3001';
+const configuredBase = typeof import.meta !== 'undefined'
+  ? (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL?.trim()
+  : undefined;
+const BASE = (configuredBase || 'https://careerpath-ai-n4ak.onrender.com').replace(/\/$/, '');
 const PROBE_INTERVAL_MS = 30_000;
 
 let backendAvailable: boolean | null = null;
@@ -70,6 +73,7 @@ export async function fetchLiveInterviewQuestion(ctx: LiveInterviewContext): Pro
   if (await probe()) {
     const r = await post<{ next: NextQuestionResponse }>('/api/ai/interview-next', {
       roleTitle: ctx.roleTitle, phase: ctx.phase,
+      roleKeywords: ctx.roleKeywords, roleTopics: ctx.roleTopics,
       messages: ctx.messages, resumeSummary: ctx.resumeSummary,
     });
     if (r?.next) return r.next;
